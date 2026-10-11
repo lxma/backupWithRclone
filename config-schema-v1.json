@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Verzeichnis-Scan-Konfiguration",
+  "description": "Einstellungen für zu durchsuchende Verzeichnisse und Ausschlüsse.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "dirs"
+  ],
+  "properties": {
+    "exclude_files": {
+      "description": "Excluded filenames.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "exclude_dirs": {
+      "description": "Excluded directories.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "exclude_paths": {
+      "description": "Excluded absolute paths.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "dir_size_factor": {
+      "description": "Weight factor for when to sync subdirs vs. individual files.",
+      "type": "integer"
+    },
+    "dirs": {
+      "description": "Directories to backup.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    }
+  }
+}

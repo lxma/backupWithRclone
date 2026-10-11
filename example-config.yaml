@@ -1,0 +1,6 @@
+# yaml-language-server: $schema=./config-schema-v1.json
+exclude_files: [".eaDir",".DS_Store"]
+exclude_dirs: [".git", ".venv", ".eaDir", ".vscode"]
+exclude_paths: ["~/Library"]
+dir_size_factor: 200
+dirs: ["~/Documents"]

@@ -1,0 +1,6 @@
+github.com/lxma/golist/v2 v2.0.4 h1:+v3FdHXYTm9YFLWUKDmvu/DPl9Vaw1zmwLZpTCICfYs=
+github.com/lxma/golist/v2 v2.0.4/go.mod h1:aDQbgEQpxt8Svu7n+J+e92QciGUh6AxFYPLD59QM014=
+github.com/lxma/gotools/v2 v2.0.4 h1:woGt/MIYcGpGa5WR1RrOu7HS7Hwwqr0xB5m2A8WfX14=
+github.com/lxma/gotools/v2 v2.0.4/go.mod h1:qfSzt/kl5uDqW2NbE7IBnxzz62t9OUmTwZJ0CGe6ZZ0=
+go.yaml.in/yaml/v3 v3.0.5 h1:N6y/pJk8buWs9NY5ERU2HSMfm+IuD/OtfdAnq6kESPw=
+go.yaml.in/yaml/v3 v3.0.5/go.mod h1:HVTZu1O7/Vkt2N+BFy8Zza+lnLsABggaTM2ZpNIGuKg=
