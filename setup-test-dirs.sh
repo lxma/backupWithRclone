@@ -33,6 +33,12 @@ touch changed_subpaths/changed_subdir_indirect/test1.txt
 touch changed_subpaths/with_changed_subdirs/changed_subdir1/test.txt
 touch changed_subpaths/with_changed_subdirs/changed_subdir2/test2.txt)
 
+if [ -f .backupWithRclone/backups.sqlite ]; then
+  sqlite3 .backupWithRclone/backups.sqlite \
+    "UPDATE backup_states
+     SET cutoff_timestamp = strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-1 year');"
+fi
+
 # Zu testen sind
 # unchanged_path -> []
 # changed_path_direct -> ["changed_path_direct"]

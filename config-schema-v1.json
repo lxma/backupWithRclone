@@ -1,53 +1,75 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Verzeichnis-Scan-Konfiguration",
-  "description": "Einstellungen für zu durchsuchende Verzeichnisse und Ausschlüsse.",
+  "title": "backupWithRclone configuration",
+  "description": "Configuration for source directories, destination prefixes, and exclusions.",
   "type": "object",
   "additionalProperties": false,
   "required": [
+    "rclone_destination_prefix",
     "dirs"
   ],
   "properties": {
-    "exclude_files": {
-      "description": "Excluded filenames.",
-      "type": "array",
-      "items": {
-        "type": "string",
-        "minLength": 1
-      },
-      "uniqueItems": true
-    },
     "exclude_dirs": {
-      "description": "Excluded directories.",
+      "description": "Directory names to exclude.",
       "type": "array",
       "items": {
         "type": "string",
         "minLength": 1
-      },
-      "uniqueItems": true
+      }
     },
     "exclude_paths": {
-      "description": "Excluded absolute paths.",
+      "description": "Paths to exclude.",
       "type": "array",
       "items": {
         "type": "string",
         "minLength": 1
-      },
-      "uniqueItems": true
+      }
     },
-    "dir_size_factor": {
-      "description": "Weight factor for when to sync subdirs vs. individual files.",
-      "type": "integer"
+    "exclude_files": {
+      "description": "File names or patterns to exclude.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
     },
-    "dirs": {
-      "description": "Directories to backup.",
+    "rclone_destination_prefix": {
+      "description": "Destination prefixes to which each resolved target directory is appended.",
       "type": "array",
       "minItems": 1,
       "items": {
         "type": "string",
         "minLength": 1
-      },
-      "uniqueItems": true
+      }
+    },
+    "dir_size_factor": {
+      "description": "Positive integer directory size factor.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "dirs": {
+      "description": "Source directories and their optional target directories.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_dir"
+        ],
+        "properties": {
+          "source_dir": {
+            "description": "Source directory to back up.",
+            "type": "string",
+            "minLength": 1
+          },
+          "target_dir": {
+            "description": "Target directory relative to each destination prefix. If omitted, the application uses the basename of source_dir.",
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
     }
   }
 }

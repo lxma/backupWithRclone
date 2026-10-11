@@ -1,0 +1,203 @@
+package main
+
+import (
+	"database/sql"
+	"fmt"
+	"time"
+
+	_ "modernc.org/sqlite"
+)
+
+var MinDate = time.Time{} // // 0001-01-01T00:00:00Z
+
+func dateToDbDate(date time.Time) string {
+	return date.UTC().Format(time.RFC3339)
+}
+
+func dbDateToDate(dbDate string) (time.Time, error) {
+	return time.Parse(time.RFC3339, dbDate)
+}
+
+func InitDB(filename string) *sql.DB {
+	db, err := sql.Open("sqlite", filename)
+	if err != nil {
+		panic(fmt.Errorf("error opening DB file %s: %w", filename, err))
+	}
+
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	if _, err = db.Exec(`CREATE TABLE IF NOT EXISTS backup_states (
+		directory              TEXT PRIMARY KEY NOT NULL,
+		cutoff_timestamp       TEXT NOT NULL,
+		completed_at_timestamp TEXT NOT NULL
+	);`); err != nil {
+		panic(fmt.Errorf("error creating backup_states: %w", err))
+	}
+
+	if _, err = db.Exec(`CREATE TABLE IF NOT EXISTS syncing_main_dirs (
+		directory        TEXT PRIMARY KEY NOT NULL,
+		started          INTEGER NOT NULL DEFAULT 0 CHECK (started IN (0, 1)),
+	completed        INTEGER NOT NULL DEFAULT 0 CHECK (completed IN (0, 1)),
+	cutoff_timestamp TEXT
+	);`); err != nil {
+		panic(fmt.Errorf("error creating syncing_main_dirs: %w", err))
+	}
+
+	if _, err = db.Exec(`CREATE TABLE IF NOT EXISTS syncing_subdirs (
+		directory TEXT PRIMARY KEY NOT NULL,
+		started   INTEGER NOT NULL DEFAULT 0 CHECK (started IN (0, 1)),
+	completed INTEGER NOT NULL DEFAULT 0 CHECK (completed IN (0, 1))
+);`); err != nil {
+		panic(fmt.Errorf("error creating syncing_subdirs: %w", err))
+	}
+
+	return db
+}
+
+func ReadCutoffTimestamps(db *sql.DB) map[string]time.Time {
+	rows, err := db.Query(`SELECT directory, cutoff_timestamp FROM backup_states`)
+	if err != nil {
+		panic(fmt.Errorf("query backup states: %w", err))
+	}
+	defer rows.Close()
+
+	cutoffs := make(map[string]time.Time)
+
+	for rows.Next() {
+		var path, timestamp string
+
+		if err := rows.Scan(&path, &timestamp); err != nil {
+			panic(fmt.Errorf("error reading backup state: %w", err))
+		}
+
+		cutoff, err := dbDateToDate(timestamp)
+		if err != nil {
+			println("invalid cutoff timestamp %s for path %s", timestamp, path)
+			continue
+		}
+
+		cutoffs[path] = cutoff
+	}
+
+	return cutoffs
+}
+
+func UpdateBackupState(
+	db *sql.DB,
+	path string,
+	cutoff time.Time,
+	completedAt time.Time,
+) error {
+	if _, err := db.Exec(`
+INSERT INTO backup_states (
+    path,
+    cutoff_timestamp,
+    completed_at_timestamp
+)
+VALUES (?, ?, ?)
+ON CONFLICT(path) DO UPDATE SET
+    cutoff_timestamp       = excluded.cutoff_timestamp,
+    completed_at_timestamp = excluded.completed_at_timestamp;
+`, path, dateToDbDate(cutoff), dateToDbDate(completedAt)); err != nil {
+		return fmt.Errorf("upsert backup state for %q: %w", path, err)
+	}
+
+	return nil
+}
+
+func beginTransaction(db *sql.DB) *sql.Tx {
+	tx, err := db.Begin()
+	if err != nil {
+		panic(fmt.Errorf("error beginning transaction: %w", err))
+	}
+	return tx
+}
+
+func StoreMainDirectoryStates(db *sql.DB, mainDirs []string) {
+	tx := beginTransaction(db)
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`DELETE FROM syncing_main_dirs`); err != nil {
+		panic(fmt.Errorf("error clearing syncinc_dirs: %w", err))
+	}
+
+	if _, err := tx.Exec(`DELETE FROM syncing_subdirs`); err != nil {
+		panic(fmt.Errorf("error clearing handling_dir: %w", err))
+	}
+	stmt, err := tx.Prepare(`INSERT INTO syncing_main_dirs
+	 (directory, started, completed, cutoff_timestamp)
+	 VALUES (?, 0, 0, ?)`)
+	if err != nil {
+		panic(fmt.Errorf("error preparing handling_dir insert: %w", err))
+	}
+	defer stmt.Close()
+
+	for _, mainDir := range mainDirs {
+		if _, err := stmt.Exec(mainDir, dateToDbDate(MinDate)); err != nil {
+			panic(fmt.Errorf("insert directory %q: %w", mainDir, err))
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		panic(fmt.Errorf("commit handling_dir transaction: %w", err))
+	}
+}
+
+func StartStoringMainDir(db *sql.DB, mainDir string, subDirs []string, cutoff time.Time) {
+	if len(subDirs) == 0 {
+		return
+	}
+
+	tx := beginTransaction(db)
+	defer tx.Rollback()
+
+	MarkMainDirStarted(tx, mainDir, cutoff)
+
+	if _, err := tx.Exec(`DELETE FROM syncing_subdirs`); err != nil {
+		panic(fmt.Errorf("error clearing handling_dir: %w", err))
+	}
+	stmt, err := tx.Prepare(`INSERT INTO syncing_subdirs (directory,completed,started) VALUES (?,0,0)`)
+	if err != nil {
+		panic(fmt.Errorf("error preparing handling_dir insert: %w", err))
+	}
+	defer stmt.Close()
+
+	for _, subDir := range subDirs {
+		if _, err := stmt.Exec(subDir); err != nil {
+			panic(fmt.Errorf("insert directory %q: %w", subDir, err))
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		panic(fmt.Errorf("commit handling_dir transaction: %w", err))
+	}
+}
+
+func MarkMainDirStarted(tx *sql.Tx, syncDir string, cutoff time.Time) {
+	if _, err := tx.Exec(`UPDATE syncing_main_dirs SET started = 1, cutoff_timestamp = ? WHERE directory = ?`, cutoff, syncDir); err != nil {
+		panic(fmt.Errorf("error updating syncinc_dirs for %s: %w", syncDir, err))
+	}
+}
+
+func MarkMainDirCompleted(db *sql.DB, mainDir string, newCutoff time.Time) {
+	if _, err := db.Exec(`UPDATE syncing_main_dirs SET completed = 1 WHERE directory = ?`, mainDir); err != nil {
+		panic(fmt.Errorf("error updating syncinc_dirs for %s: %w", mainDir, err))
+	}
+	if _, err := db.Exec(`UPDATE backup_states SET cutoff_timestamp = ?, completed_at_timestamp = ? WHERE directory = ?`, newCutoff, dateToDbDate(time.Now()), mainDir); err != nil {
+		panic(fmt.Errorf("error updating syncing_dirs for %s: %w", mainDir, err))
+	}
+}
+
+func MarkSubDirStarted(db *sql.DB, syncDir string) {
+	if _, err := db.Exec(`UPDATE syncing_subdirs SET started = 1 WHERE directory = ?`, syncDir); err != nil {
+		panic(fmt.Errorf("error updating syncing_dirs for %s: %w", syncDir, err))
+	}
+}
+
+func MarkSubDirCompleted(db *sql.DB, syncDir string) {
+	if _, err := db.Exec(`UPDATE syncing_subdirs SET completed = 1 WHERE directory = ?`, syncDir); err != nil {
+		panic(fmt.Errorf("error updating syncing_dirs for %s: %w", syncDir, err))
+	}
+}

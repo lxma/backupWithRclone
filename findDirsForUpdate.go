@@ -11,8 +11,6 @@ import (
 	"github.com/lxma/golist/v2"
 )
 
-const cDefaultDirSizeFactor = 200
-
 func findDirsForUpdate(root string, since time.Time) ([]string, error) {
 	f, err := os.Open(root)
 	if err != nil {
@@ -58,7 +56,7 @@ func scanDir(dir string, since time.Time) (changedDirs *golist.List[string], num
 				if entry.IsDir() {
 					changedDirs.PushBack(fullEntryPath)
 				} else {
-					return golist.MakeList(dir), 0, nil
+					return golist.MakeList(dir), 1, nil
 				}
 			} else if entry.IsDir() {
 				changedSubDirs, numUnchangedFilesInSubdir, err := scanDir(fullEntryPath, since)
@@ -77,9 +75,9 @@ func scanDir(dir string, since time.Time) (changedDirs *golist.List[string], num
 			return nil, 0, readErr
 		}
 	}
-	if changedDirs.Len()*cDefaultDirSizeFactor > numUnchangedFiles {
+	if changedDirs.Len()*cfg.DirSizeFactor > numUnchangedFiles {
 		// It's not worth storing each change individually
-		return golist.MakeList(dir), 0, nil
+		return golist.MakeList(dir), 1, nil
 	}
 	return changedDirs, numUnchangedFiles, nil
 }

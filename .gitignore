@@ -13,6 +13,7 @@
 
 # Test dirs
 testdirs
+backups.sqlite
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
@@ -26,3 +27,6 @@ go.work.sum
 
 # env file
 .env
+
+# IDE
+.idea/

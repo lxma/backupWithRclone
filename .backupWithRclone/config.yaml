@@ -1,0 +1,5 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/lxma/backupWithRclone/refs/heads/main/config-schema-v1.json
+dir_size_factor: 1
+# dirs: ["./testdirs/changed_path_direct", "./testdirs/changed_path_indirect", "./testdirs/changed_subpaths", "./testdirs/unchanged_path"]
+dirs: ["./testdirs/changed_subpaths" ]
+#dirs: ["./testdirs/unchanged_path" ]

@@ -1,6 +1,17 @@
-# yaml-language-server: $schema=./config-schema-v1.json
-exclude_files: [".eaDir",".DS_Store"]
+# yaml-language-server: $schema=https://raw.githubusercontent.com/lxma/backupWithRclone/refs/heads/main/config-schema-v1.json
 exclude_dirs: [".git", ".venv", ".eaDir", ".vscode"]
 exclude_paths: ["~/Library"]
+exclude_files: [".github"]
+rclone_destination_prefix: ["pcloud:backup"]
 dir_size_factor: 200
-dirs: ["~/Documents"]
+# target_dir can be specified - it defaults to the basename of the source directory.
+# in the example below the resulting target destinations will be (considering the
+# rclone_destination_prefix "pcloud:backup"):
+#   ~/Pictures              -> pcloud:backup/Pictures
+#   ~/Texts/Important       -> pcloud:backup/Important_Texts
+#   ~/Development/Projects  -> pcloud:backup/Projects
+dirs:
+  - source_dir: "~/Pictures"
+  - source_dir: "~/Texts/Important"
+    target_dir: "Important_Texts"
+  - source_dir: "~/Development/Projects"
