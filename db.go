@@ -185,7 +185,12 @@ func MarkMainDirCompleted(db *sql.DB, mainDir string, newCutoff time.Time) {
 	if _, err := db.Exec(`UPDATE syncing_main_dirs SET completed = 1 WHERE directory = ?`, mainDir); err != nil {
 		panic(fmt.Errorf("error updating syncinc_dirs for %s: %w", mainDir, err))
 	}
-	if _, err := db.Exec(`UPDATE backup_states SET cutoff_timestamp = ?, completed_at_timestamp = ? WHERE directory = ?`, newCutoff, dateToDbDate(time.Now()), mainDir); err != nil {
+	if _, err := db.Exec(`INSERT INTO backup_states
+		(directory, cutoff_timestamp, completed_at_timestamp)
+		VALUES (?, ?, ?)
+		ON CONFLICT(directory) DO UPDATE
+		    SET cutoff_timestamp = excluded.cutoff_timestamp, completed_at_timestamp = excluded.completed_at_timestamp`,
+		mainDir, dateToDbDate(newCutoff), dateToDbDate(time.Now())); err != nil {
 		panic(fmt.Errorf("error updating syncing_dirs for %s: %w", mainDir, err))
 	}
 }
