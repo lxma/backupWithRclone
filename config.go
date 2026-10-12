@@ -28,6 +28,7 @@ type TDirConfig struct {
 	ExcludeFiles []string `yaml:"exclude_files"`
 }
 
+const cBackupWithRcloneDirEnv = "BACKUP_WITH_RCLONE_DIR"
 const cDefaultDirSizeFactor = 200
 const cDefaultBackupDir = "~/.backupWithRclone"
 
@@ -57,7 +58,7 @@ func arePathsRelated(p1, p2 string) bool {
 }
 
 func LoadConfig() {
-	backupDir, _ = os.LookupEnv("BACKUP_WITH_RCLONE_DIR")
+	backupDir, _ = os.LookupEnv(cBackupWithRcloneDirEnv)
 	if backupDir == "" {
 		backupDir = cDefaultBackupDir
 	}
@@ -108,6 +109,22 @@ func LoadConfig() {
 					configFilename, cfg.DirsConfig[i].TargetDir, cfg.DirsConfig[k].TargetDir))
 
 			}
+		}
+	}
+
+	// Ensure all filename patterns are ok
+	checkFilenamePatterns(cfg.ExcludeFiles)
+	checkFilenamePatterns(cfg.ExcludeDirs)
+	for _, dirConfig := range cfg.DirsConfig {
+		checkFilenamePatterns(dirConfig.ExcludeFiles)
+		checkFilenamePatterns(dirConfig.ExcludeDirs)
+	}
+}
+
+func checkFilenamePatterns(patterns []string) {
+	for _, pattern := range patterns {
+		if _, err := filepath.Match(pattern, "abc"); err != nil {
+			panic(fmt.Errorf("invalid filename pattern %s: %w", pattern, err))
 		}
 	}
 }

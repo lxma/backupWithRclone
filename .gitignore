@@ -31,3 +31,6 @@ go.work.sum
 
 # IDE
 .idea/
+
+# Test Lock File
+.backupWithRclone/lock

@@ -11,7 +11,7 @@ import (
 	"github.com/lxma/golist/v2"
 )
 
-func findDirsForUpdate(root string, since time.Time) ([]string, error) {
+func findDirsForUpdate(root string, since time.Time, exclusions TExclusions) ([]string, error) {
 	f, err := os.Open(root)
 	if err != nil {
 		return nil, err
@@ -29,7 +29,7 @@ func findDirsForUpdate(root string, since time.Time) ([]string, error) {
 		return []string{root}, nil
 	}
 
-	changedDirs, _, err := scanDir(root, since)
+	changedDirs, _, err := scanDir(root, since, exclusions)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func findDirsForUpdate(root string, since time.Time) ([]string, error) {
 	return changedDirsSlice, nil
 }
 
-func scanDir(dir string, since time.Time) (changedDirs *golist.List[string], numUnchangedFiles int, err error) {
+func scanDir(dir string, since time.Time, exclusions TExclusions) (changedDirs *golist.List[string], numUnchangedFiles int, err error) {
 	f, err := os.Open(dir)
 	if err != nil {
 		return nil, 0, err
@@ -51,6 +51,10 @@ func scanDir(dir string, since time.Time) (changedDirs *golist.List[string], num
 	for {
 		entries, readErr := f.Readdir(cBatchSize)
 		for _, entry := range entries {
+			if exclusions.IsEntryExcluded(entry) {
+				fmt.Printf("Excluded: %s/%s\n", dir, entry.Name())
+				continue
+			}
 			fullEntryPath := filepath.Join(dir, entry.Name())
 			if entry.ModTime().After(since) {
 				if entry.IsDir() {
@@ -59,7 +63,7 @@ func scanDir(dir string, since time.Time) (changedDirs *golist.List[string], num
 					return golist.MakeList(dir), 1, nil
 				}
 			} else if entry.IsDir() {
-				changedSubDirs, numUnchangedFilesInSubdir, err := scanDir(fullEntryPath, since)
+				changedSubDirs, numUnchangedFilesInSubdir, err := scanDir(fullEntryPath, since, exclusions)
 				if err != nil {
 					return nil, 0, err
 				}

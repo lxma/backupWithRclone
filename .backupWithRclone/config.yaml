@@ -1,8 +1,11 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/lxma/backupWithRclone/refs/heads/main/config-schema-v1.json
 rclone_destination_prefix: "wtf:backup"
 dir_size_factor: 1
+exclude_files: [test.txt]
+exclude_dirs: [unchanged*]
 dirs:
-  - source_dir: "./testdirs/unchanged_path"
-  - source_dir: "./testdirs/changed_path_direct"
-  - source_dir: "./testdirs/changed_path_indirect"
-  - source_dir: "./testdirs/changed_subpaths"
+  - source_dir: ./testdirs/unchanged_path
+  - source_dir: ./testdirs/changed_path_direct
+  - source_dir: ./testdirs/changed_path_indirect
+  - source_dir: ./testdirs/changed_subpaths
+    target_dir: output

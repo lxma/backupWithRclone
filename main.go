@@ -22,18 +22,6 @@ type tDirAndCutoff struct {
 func main() {
 	LoadConfig()
 
-	//ds, err := findDirsForUpdate(ExpandHome("~/Fotos"), time.Now())
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Printf("found %d directories\n", len(ds))
-	//for _, d := range ds {
-	//	fmt.Printf("- %s\n", d)
-	//}
-	//if 1 == 1 {
-	//	return
-	//}
-
 	lock, ok := AcquireInstanceLock()
 	if !ok {
 		fmt.Println("A parallel instance is already running, quitting")
@@ -68,9 +56,11 @@ func main() {
 }
 
 func updateDir(db *sql.DB, dir string, oldCutoff time.Time) {
-	fmt.Printf("Updating %s\n", dir)
-	baseDir := filepath.Clean(ExpandHome(dir))
-	updateDirs, err := findDirsForUpdate(baseDir, oldCutoff)
+	fmt.Printf("\nUpdating %s\n", dir)
+	cleanDir := filepath.Clean(ExpandHome(dir))
+	exclusions := MakeExclusions(dir)
+
+	updateDirs, err := findDirsForUpdate(cleanDir, oldCutoff, exclusions)
 	if err != nil {
 		fmt.Printf("error finding dirs for update in %s: %v\n", dir, err)
 		fmt.Printf("NOT SYNCING %s!\n", dir)
@@ -80,19 +70,21 @@ func updateDir(db *sql.DB, dir string, oldCutoff time.Time) {
 	for _, updateDir := range updateDirs {
 		MarkSubDirStarted(db, updateDir)
 		fmt.Printf("- updating %s ...\n", updateDir)
-		destination := addPathToRcloneDestination(getTargetPath(baseDir, updateDir, cfg.Dirs[dir].TargetDir))
-		RunRclone(updateDir, destination)
+		destination := addPathToRcloneDestination(getTargetPath(cleanDir, updateDir, cfg.Dirs[dir].TargetDir))
+		if err := RunRclone(updateDir, destination, exclusions); err != nil {
+			panic(err)
+		}
 		MarkSubDirCompleted(db, updateDir)
 	}
 	MarkMainDirCompleted(db, dir, newCutoff)
 }
 
-func getTargetPath(baseDir, updateDir, targetDir string) string {
-	gotools.Assert(strings.HasPrefix(updateDir, baseDir))
-	if baseDir == updateDir {
+func getTargetPath(rootDir, updateDir, targetDir string) string {
+	gotools.Assert(strings.HasPrefix(updateDir, rootDir))
+	if rootDir == updateDir {
 		return filepath.Clean(targetDir)
 	}
-	return filepath.Join(filepath.Clean(targetDir), updateDir[len(baseDir)+1:])
+	return filepath.Join(filepath.Clean(targetDir), updateDir[len(rootDir)+1:])
 }
 
 func addPathToRcloneDestination(targetDir string) string {
@@ -103,11 +95,11 @@ func addPathToRcloneDestination(targetDir string) string {
 	return filepath.Join(cfg.RcloneDestinationPrefix, targetDir)
 }
 
-func RunRclone(sourceDir, destination string) error {
+func RunRclone(sourceDir, destination string, exclusions TExclusions) error {
 	//fmt.Printf("rclone %s -> %s\n", sourceDir, destination)
-	cmd := exec.Command("rclone", "sync", sourceDir, destination, "-P", "--delete-excluded", "--exclude-from", ExpandHome("~/.backupWithRclone/excluded"))
+	cmd := exec.Command("rclone", "sync", sourceDir, destination, "-P", "--delete-excluded", "--exclude-from", "-")
 
-	cmd.Stdin = os.Stdin
+	cmd.Stdin = strings.NewReader(strings.Join(exclusions.RclonePatterns, "\n") + "\n")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
