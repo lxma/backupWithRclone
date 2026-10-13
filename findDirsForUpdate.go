@@ -79,7 +79,7 @@ func scanDir(dir string, since time.Time, exclusions TExclusions) (changedDirs *
 			return nil, 0, readErr
 		}
 	}
-	if changedDirs.Len()*cfg.DirSizeFactor > numUnchangedFiles {
+	if changedDirs.Len()*gConfig.DirSizeFactor > numUnchangedFiles {
 		// It's not worth storing each change individually
 		return golist.MakeList(dir), 1, nil
 	}

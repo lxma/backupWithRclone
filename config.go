@@ -32,8 +32,8 @@ const cBackupWithRcloneDirEnv = "BACKUP_WITH_RCLONE_DIR"
 const cDefaultDirSizeFactor = 200
 const cDefaultBackupDir = "~/.backupWithRclone"
 
-var cfg TConfig
-var backupDir string
+var gConfig TConfig
+var gBackupDir string
 
 func getTargetDir(dirConfig TDirConfig) string {
 	if dirConfig.TargetDir == "" {
@@ -58,12 +58,12 @@ func arePathsRelated(p1, p2 string) bool {
 }
 
 func LoadConfig() {
-	backupDir, _ = os.LookupEnv(cBackupWithRcloneDirEnv)
-	if backupDir == "" {
-		backupDir = cDefaultBackupDir
+	gBackupDir, _ = os.LookupEnv(cBackupWithRcloneDirEnv)
+	if gBackupDir == "" {
+		gBackupDir = cDefaultBackupDir
 	}
-	backupDir = ExpandHome(backupDir)
-	configFilename := filepath.Join(backupDir, "config.yaml")
+	gBackupDir = ExpandHome(gBackupDir)
+	configFilename := filepath.Join(gBackupDir, "config.yaml")
 	f, err := os.Open(configFilename)
 	if err != nil {
 		panic(fmt.Errorf("error when opening configuration %s: %w", configFilename, err))
@@ -73,7 +73,7 @@ func LoadConfig() {
 	dec := yaml.NewDecoder(f)
 	dec.KnownFields(true)
 
-	if err := dec.Decode(&cfg); err != nil {
+	if err := dec.Decode(&gConfig); err != nil {
 		if err == io.EOF {
 			panic(fmt.Errorf("configuration %s is empty", configFilename))
 		}
@@ -81,13 +81,13 @@ func LoadConfig() {
 			"error reading configuration %s: %w", configFilename, err))
 	}
 
-	if cfg.DirSizeFactor == 0 {
-		cfg.DirSizeFactor = cDefaultDirSizeFactor
+	if gConfig.DirSizeFactor == 0 {
+		gConfig.DirSizeFactor = cDefaultDirSizeFactor
 	}
 
-	cfg.Dirs = map[string]TDirConfig{}
-	for _, dirConfig := range cfg.DirsConfig {
-		cfg.Dirs[dirConfig.SourceDir] = TDirConfig{
+	gConfig.Dirs = map[string]TDirConfig{}
+	for _, dirConfig := range gConfig.DirsConfig {
+		gConfig.Dirs[dirConfig.SourceDir] = TDirConfig{
 			SourceDir:    filepath.Clean(dirConfig.SourceDir),
 			TargetDir:    getTargetDir(dirConfig),
 			ExcludeDirs:  dirConfig.ExcludeDirs,
@@ -97,25 +97,25 @@ func LoadConfig() {
 	}
 
 	// Ensure no relevant directory is a prefix of another
-	for i := 0; i < len(cfg.DirsConfig)-1; i++ {
-		for k := i + 1; k < len(cfg.DirsConfig); k++ {
-			if arePathsRelated(cfg.DirsConfig[i].SourceDir, cfg.DirsConfig[k].SourceDir) {
+	for i := 0; i < len(gConfig.DirsConfig)-1; i++ {
+		for k := i + 1; k < len(gConfig.DirsConfig); k++ {
+			if arePathsRelated(gConfig.DirsConfig[i].SourceDir, gConfig.DirsConfig[k].SourceDir) {
 				panic(fmt.Errorf("overlapping source dirs in config %s found: %s and %s",
-					configFilename, cfg.DirsConfig[i].SourceDir, cfg.DirsConfig[k].SourceDir))
+					configFilename, gConfig.DirsConfig[i].SourceDir, gConfig.DirsConfig[k].SourceDir))
 			}
 
-			if arePathsRelated(getTargetDir(cfg.DirsConfig[i]), getTargetDir(cfg.DirsConfig[k])) {
+			if arePathsRelated(getTargetDir(gConfig.DirsConfig[i]), getTargetDir(gConfig.DirsConfig[k])) {
 				panic(fmt.Errorf("overlapping target dirs in config %s found: %s and %s",
-					configFilename, cfg.DirsConfig[i].TargetDir, cfg.DirsConfig[k].TargetDir))
+					configFilename, gConfig.DirsConfig[i].TargetDir, gConfig.DirsConfig[k].TargetDir))
 
 			}
 		}
 	}
 
 	// Ensure all filename patterns are ok
-	checkFilenamePatterns(cfg.ExcludeFiles)
-	checkFilenamePatterns(cfg.ExcludeDirs)
-	for _, dirConfig := range cfg.DirsConfig {
+	checkFilenamePatterns(gConfig.ExcludeFiles)
+	checkFilenamePatterns(gConfig.ExcludeDirs)
+	for _, dirConfig := range gConfig.DirsConfig {
 		checkFilenamePatterns(dirConfig.ExcludeFiles)
 		checkFilenamePatterns(dirConfig.ExcludeDirs)
 	}

@@ -15,10 +15,10 @@ type TExclusions struct {
 }
 
 func MakeExclusions(dir string) TExclusions {
-	excludeDirs := gotools.CopySlice(cfg.ExcludeDirs)
-	excludeDirs = append(excludeDirs, cfg.Dirs[dir].ExcludeDirs...)
-	excludeFiles := gotools.CopySlice(cfg.ExcludeFiles)
-	excludeFiles = append(excludeFiles, cfg.Dirs[dir].ExcludeFiles...)
+	excludeDirs := gotools.CopySlice(gConfig.ExcludeDirs)
+	excludeDirs = append(excludeDirs, gConfig.Dirs[dir].ExcludeDirs...)
+	excludeFiles := gotools.CopySlice(gConfig.ExcludeFiles)
+	excludeFiles = append(excludeFiles, gConfig.Dirs[dir].ExcludeFiles...)
 	patterns := gotools.CopySlice(excludeFiles)
 	patterns = append(patterns, gotools.Map(excludeDirs, func(pattern string) string {
 		return filepath.Clean(pattern) + string(filepath.Separator)
