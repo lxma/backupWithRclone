@@ -31,7 +31,8 @@ func isFilenameExcluded(filename string, excludeList []string) bool {
 		matched, err := filepath.Match(exclude, filename)
 		if err != nil {
 			// such errors should have been ruled out when reading the configuration
-			panic(fmt.Errorf("Unexpected error when matching filename pattern '%s': %w", exclude, err))
+			GLogger.Printf("error when matching filename pattern '%s': %v", exclude, err)
+			panic(fmt.Errorf("Unexpected error when matching filename pattern '%s': %v", exclude, err))
 		}
 		if matched {
 			return true

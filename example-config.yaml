@@ -1,6 +1,5 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/lxma/backupWithRclone/refs/heads/main/config-schema-v1.json
-exclude_dirs: [.git, .venv, .eaDir, .vscode]
-exclude_paths: [~/Library]
+exclude_dirs: [.git, .venv, .@eaDir, .vscode]
 exclude_files: [.github]
 rclone_destination_prefix: pcloud:backup
 dir_size_factor: 200
@@ -16,5 +15,4 @@ dirs:
     target_dir: Important_Texts
     excluded_files: ["*.aux", "*.log"]
     excluded_dirs: [.github]
-    excluded_paths: [/.autosave_backup]
   - source_dir: ~/Development/Projects

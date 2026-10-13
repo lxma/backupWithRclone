@@ -7,13 +7,18 @@ import (
 	"path/filepath"
 )
 
-var gLogFile *File
-func
-func CreateLog() *log.Logger {
+var gLogFile *os.File
+var GLogger *log.Logger
+
+func InitLog() {
 	file, err := os.OpenFile(filepath.Join(gBackupDir, "exec.log"),
 		os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
-		panic(fmt.Errorf("Error accessing log file: %w", err))
+		panic(fmt.Errorf("Error accessing log file: %v", err))
 	}
-	return log.New(file, "", log.LstdFlags)
+	GLogger = log.New(file, "", log.LstdFlags)
+}
+
+func CloseLog() {
+	gLogFile.Close()
 }

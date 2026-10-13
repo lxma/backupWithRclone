@@ -10,7 +10,7 @@
   ],
   "properties": {
     "exclude_dirs": {
-      "description": "Directory names to exclude.",
+      "description": "Directory names (glob patterns like .DS*) to exclude.",
       "type": "array",
       "items": {
         "type": "string",
@@ -18,7 +18,7 @@
       }
     },
     "exclude_files": {
-      "description": "Paths to exclude.",
+      "description": "Filenames (glob patterns like *.txt) to exclude.",
       "type": "array",
       "items": {
         "type": "string",
@@ -56,16 +56,8 @@
             "type": "string",
             "minLength": 1
           },
-          "exclude_paths": {
-            "description": "List of paths to be excluded relative to source_dir",
-            "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 1
-            }
-          },
           "exclude_files": {
-            "description": "List of files to be excluded specific to source_dir",
+            "description": "Filenames (glob patterns like *.txt) to exclude when syncing source_dir",
             "type": "array",
             "items": {
               "type": "string",
@@ -73,7 +65,7 @@
             }
           },
           "exclude_dirs": {
-            "description": "List of directory to be excluded specific to source_dir",
+            "description": "Directory names (glob patterns like .DS*) to exclude when syncing source_dir",
             "type": "array",
             "items": {
               "type": "string",

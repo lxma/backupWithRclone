@@ -66,7 +66,7 @@ func LoadConfig() {
 	configFilename := filepath.Join(gBackupDir, "config.yaml")
 	f, err := os.Open(configFilename)
 	if err != nil {
-		panic(fmt.Errorf("error when opening configuration %s: %w", configFilename, err))
+		panic(fmt.Errorf("error when opening configuration %s: %v", configFilename, err))
 	}
 	defer f.Close()
 
@@ -78,7 +78,7 @@ func LoadConfig() {
 			panic(fmt.Errorf("configuration %s is empty", configFilename))
 		}
 		panic(fmt.Errorf(
-			"error reading configuration %s: %w", configFilename, err))
+			"error reading configuration %s: %v", configFilename, err))
 	}
 
 	if gConfig.DirSizeFactor == 0 {
@@ -124,7 +124,7 @@ func LoadConfig() {
 func checkFilenamePatterns(patterns []string) {
 	for _, pattern := range patterns {
 		if _, err := filepath.Match(pattern, "abc"); err != nil {
-			panic(fmt.Errorf("invalid filename pattern %s: %w", pattern, err))
+			panic(fmt.Errorf("invalid filename pattern %s: %v", pattern, err))
 		}
 	}
 }

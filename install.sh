@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-go build && mv -f backupWithClone ~/bin
+go build && mv -f backupWithRclone ~/bin

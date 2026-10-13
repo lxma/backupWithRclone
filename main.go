@@ -31,6 +31,8 @@ var gLogger *log.Logger
 
 func main() {
 	LoadConfig()
+	InitLog()
+	defer CloseLog()
 
 	flag.Func("x", "Extra rclone args", func(arg string) error {
 		gExtraRcloneArgs = append(gExtraRcloneArgs, arg)
@@ -74,7 +76,8 @@ func main() {
 }
 
 func updateDir(db *sql.DB, dir string, oldCutoff time.Time) {
-	fmt.Printf("\nUpdating %s\n", dir)
+	fmt.Printf("\nUpdating main dir %s\n", dir)
+	GLogger.Printf("Updating %s\n", dir)
 	cleanDir := filepath.Clean(ExpandHome(dir))
 	exclusions := MakeExclusions(dir)
 
@@ -86,6 +89,7 @@ func updateDir(db *sql.DB, dir string, oldCutoff time.Time) {
 		updateDirs, err = findDirsForUpdate(cleanDir, oldCutoff, exclusions)
 		if err != nil {
 			fmt.Printf("error finding dirs for update in %s: %v\n", dir, err)
+			GLogger.Printf("error finding dirs for update in %s: %v\n", dir, err)
 			fmt.Printf("NOT SYNCING %s!\n", dir)
 			return
 		}
@@ -94,12 +98,14 @@ func updateDir(db *sql.DB, dir string, oldCutoff time.Time) {
 	StartStoringMainDir(db, dir, updateDirs, newCutoff)
 	for _, updateDir := range updateDirs {
 		MarkSubDirStarted(db, updateDir)
-		fmt.Printf("- updating %s ...\n", updateDir)
+		fmt.Printf("- Updating %s ...\n", updateDir)
+		GLogger.Printf("Start updating subdir %s\n", updateDir)
 		destination := addPathToRcloneDestination(getTargetPath(cleanDir, updateDir, gConfig.Dirs[dir].TargetDir))
 		if err := RunRclone(updateDir, destination, exclusions); err != nil {
 			panic(err)
 		}
 		MarkSubDirCompleted(db, updateDir)
+		GLogger.Printf("Completed updating subdir %s\n", updateDir)
 	}
 	MarkMainDirCompleted(db, dir, newCutoff)
 }
@@ -135,7 +141,8 @@ func RunRclone(sourceDir, destination string, exclusions TExclusions) error {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("rclone failed: %w", err)
+		GLogger.Printf("error running rclone command: %v\n", err)
+		return fmt.Errorf("rclone failed: %v", err)
 	}
 
 	return nil
@@ -147,7 +154,8 @@ func AcquireInstanceLock() (*os.File, bool) {
 	lockFile := filepath.Join(gBackupDir, "lock")
 	file, err := os.OpenFile(lockFile, os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
-		panic(fmt.Errorf("failed to open lock file %s: %w", lockFile, err))
+		GLogger.Printf("error opening lock file %s: %v\n", lockFile, err)
+		panic(fmt.Errorf("failed to open lock file %s: %v", lockFile, err))
 	}
 
 	err = unix.Flock(int(file.Fd()), unix.LOCK_EX|unix.LOCK_NB)
@@ -158,8 +166,8 @@ func AcquireInstanceLock() (*os.File, bool) {
 			errors.Is(err, unix.EAGAIN) {
 			return nil, false
 		}
-
-		panic(fmt.Errorf("error acquiring instance lock %s: %w", lockFile, err))
+		GLogger.Printf("error acquiring instance lock %s: %v\n", lockFile, err)
+		panic(fmt.Errorf("error acquiring instance lock %s: %v", lockFile, err))
 	}
 
 	return file, true

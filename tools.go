@@ -11,7 +11,8 @@ func ExpandHome(path string) string {
 	if path == "~" {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			panic(fmt.Errorf("error getiting home directory: %w", err))
+			GLogger.Printf("error getting home directory: %v\n", err)
+			panic(fmt.Errorf("error getting home directory: %v", err))
 		}
 		return home
 	}
@@ -19,7 +20,8 @@ func ExpandHome(path string) string {
 	if strings.HasPrefix(path, "~/") {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			panic(fmt.Errorf("error getiting home directory: %w", err))
+			GLogger.Printf("error getting home directory: %v\n", err)
+			panic(fmt.Errorf("error getting home directory: %v", err))
 		}
 		return filepath.Join(home, path[2:])
 	}
