@@ -1,6 +1,7 @@
-package main
+package config
 
 import (
+	"backupWithRclone/tools"
 	"fmt"
 	"io"
 	"os"
@@ -32,8 +33,8 @@ const cBackupWithRcloneDirEnv = "BACKUP_WITH_RCLONE_DIR"
 const cDefaultDirSizeFactor = 200
 const cDefaultBackupDir = "~/.backupWithRclone"
 
-var gConfig TConfig
-var gBackupDir string
+var GConfig TConfig
+var GBackupDir string
 
 func getTargetDir(dirConfig TDirConfig) string {
 	if dirConfig.TargetDir == "" {
@@ -58,12 +59,16 @@ func arePathsRelated(p1, p2 string) bool {
 }
 
 func LoadConfig() {
-	gBackupDir, _ = os.LookupEnv(cBackupWithRcloneDirEnv)
-	if gBackupDir == "" {
-		gBackupDir = cDefaultBackupDir
+	GBackupDir, _ = os.LookupEnv(cBackupWithRcloneDirEnv)
+	if GBackupDir == "" {
+		GBackupDir = cDefaultBackupDir
 	}
-	gBackupDir = ExpandHome(gBackupDir)
-	configFilename := filepath.Join(gBackupDir, "config.yaml")
+	var err error
+	GBackupDir, err = tools.ExpandHome(GBackupDir)
+	if err != nil {
+		panic("Cannot expand home dir: " + GBackupDir)
+	}
+	configFilename := filepath.Join(GBackupDir, "config.yaml")
 	f, err := os.Open(configFilename)
 	if err != nil {
 		panic(fmt.Errorf("error when opening configuration %s: %v", configFilename, err))
@@ -73,7 +78,7 @@ func LoadConfig() {
 	dec := yaml.NewDecoder(f)
 	dec.KnownFields(true)
 
-	if err := dec.Decode(&gConfig); err != nil {
+	if err := dec.Decode(&GConfig); err != nil {
 		if err == io.EOF {
 			panic(fmt.Errorf("configuration %s is empty", configFilename))
 		}
@@ -81,13 +86,13 @@ func LoadConfig() {
 			"error reading configuration %s: %v", configFilename, err))
 	}
 
-	if gConfig.DirSizeFactor == 0 {
-		gConfig.DirSizeFactor = cDefaultDirSizeFactor
+	if GConfig.DirSizeFactor == 0 {
+		GConfig.DirSizeFactor = cDefaultDirSizeFactor
 	}
 
-	gConfig.Dirs = map[string]TDirConfig{}
-	for _, dirConfig := range gConfig.DirsConfig {
-		gConfig.Dirs[dirConfig.SourceDir] = TDirConfig{
+	GConfig.Dirs = map[string]TDirConfig{}
+	for _, dirConfig := range GConfig.DirsConfig {
+		GConfig.Dirs[dirConfig.SourceDir] = TDirConfig{
 			SourceDir:    filepath.Clean(dirConfig.SourceDir),
 			TargetDir:    getTargetDir(dirConfig),
 			ExcludeDirs:  dirConfig.ExcludeDirs,
@@ -97,25 +102,25 @@ func LoadConfig() {
 	}
 
 	// Ensure no relevant directory is a prefix of another
-	for i := 0; i < len(gConfig.DirsConfig)-1; i++ {
-		for k := i + 1; k < len(gConfig.DirsConfig); k++ {
-			if arePathsRelated(gConfig.DirsConfig[i].SourceDir, gConfig.DirsConfig[k].SourceDir) {
+	for i := 0; i < len(GConfig.DirsConfig)-1; i++ {
+		for k := i + 1; k < len(GConfig.DirsConfig); k++ {
+			if arePathsRelated(GConfig.DirsConfig[i].SourceDir, GConfig.DirsConfig[k].SourceDir) {
 				panic(fmt.Errorf("overlapping source dirs in config %s found: %s and %s",
-					configFilename, gConfig.DirsConfig[i].SourceDir, gConfig.DirsConfig[k].SourceDir))
+					configFilename, GConfig.DirsConfig[i].SourceDir, GConfig.DirsConfig[k].SourceDir))
 			}
 
-			if arePathsRelated(getTargetDir(gConfig.DirsConfig[i]), getTargetDir(gConfig.DirsConfig[k])) {
+			if arePathsRelated(getTargetDir(GConfig.DirsConfig[i]), getTargetDir(GConfig.DirsConfig[k])) {
 				panic(fmt.Errorf("overlapping target dirs in config %s found: %s and %s",
-					configFilename, gConfig.DirsConfig[i].TargetDir, gConfig.DirsConfig[k].TargetDir))
+					configFilename, GConfig.DirsConfig[i].TargetDir, GConfig.DirsConfig[k].TargetDir))
 
 			}
 		}
 	}
 
 	// Ensure all filename patterns are ok
-	checkFilenamePatterns(gConfig.ExcludeFiles)
-	checkFilenamePatterns(gConfig.ExcludeDirs)
-	for _, dirConfig := range gConfig.DirsConfig {
+	checkFilenamePatterns(GConfig.ExcludeFiles)
+	checkFilenamePatterns(GConfig.ExcludeDirs)
+	for _, dirConfig := range GConfig.DirsConfig {
 		checkFilenamePatterns(dirConfig.ExcludeFiles)
 		checkFilenamePatterns(dirConfig.ExcludeDirs)
 	}

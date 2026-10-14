@@ -1,6 +1,8 @@
 package main
 
 import (
+	"backupWithRclone/config"
+	"backupWithRclone/exclusions"
 	"fmt"
 	"io"
 	"os"
@@ -11,7 +13,7 @@ import (
 	"github.com/lxma/golist/v2"
 )
 
-func findDirsForUpdate(root string, since time.Time, exclusions TExclusions) ([]string, error) {
+func findDirsForUpdate(root string, since time.Time, exclusions exclusions.TExclusions) ([]string, error) {
 	f, err := os.Open(root)
 	if err != nil {
 		return nil, err
@@ -38,7 +40,7 @@ func findDirsForUpdate(root string, since time.Time, exclusions TExclusions) ([]
 	return changedDirsSlice, nil
 }
 
-func scanDir(dir string, since time.Time, exclusions TExclusions) (changedDirs *golist.List[string], numUnchangedFiles int, err error) {
+func scanDir(dir string, since time.Time, exclusions exclusions.TExclusions) (changedDirs *golist.List[string], numUnchangedFiles int, err error) {
 	f, err := os.Open(dir)
 	if err != nil {
 		return nil, 0, err
@@ -78,7 +80,7 @@ func scanDir(dir string, since time.Time, exclusions TExclusions) (changedDirs *
 			return nil, 0, readErr
 		}
 	}
-	if changedDirs.Len()*gConfig.DirSizeFactor > numUnchangedFiles {
+	if changedDirs.Len()*config.GConfig.DirSizeFactor > numUnchangedFiles {
 		// It's not worth storing each change individually
 		return golist.MakeList(dir), 1, nil
 	}

@@ -1,7 +1,8 @@
-package main
+package exclusions
 
 import (
-	"fmt"
+	"backupWithRclone/config"
+	"backupWithRclone/log"
 	"os"
 	"path/filepath"
 
@@ -15,10 +16,10 @@ type TExclusions struct {
 }
 
 func MakeExclusions(dir string) TExclusions {
-	excludeDirs := gotools.CopySlice(gConfig.ExcludeDirs)
-	excludeDirs = append(excludeDirs, gConfig.Dirs[dir].ExcludeDirs...)
-	excludeFiles := gotools.CopySlice(gConfig.ExcludeFiles)
-	excludeFiles = append(excludeFiles, gConfig.Dirs[dir].ExcludeFiles...)
+	excludeDirs := gotools.CopySlice(config.GConfig.ExcludeDirs)
+	excludeDirs = append(excludeDirs, config.GConfig.Dirs[dir].ExcludeDirs...)
+	excludeFiles := gotools.CopySlice(config.GConfig.ExcludeFiles)
+	excludeFiles = append(excludeFiles, config.GConfig.Dirs[dir].ExcludeFiles...)
 	patterns := gotools.CopySlice(excludeFiles)
 	patterns = append(patterns, gotools.Map(excludeDirs, func(pattern string) string {
 		return filepath.Clean(pattern) + string(filepath.Separator)
@@ -31,8 +32,7 @@ func isFilenameExcluded(filename string, excludeList []string) bool {
 		matched, err := filepath.Match(exclude, filename)
 		if err != nil {
 			// such errors should have been ruled out when reading the configuration
-			GLogger.Printf("error when matching filename pattern '%s': %v", exclude, err)
-			panic(fmt.Errorf("Unexpected error when matching filename pattern '%s': %v", exclude, err))
+			log.Printf("error when matching filename pattern '%s': %v", exclude, err)
 		}
 		if matched {
 			return true

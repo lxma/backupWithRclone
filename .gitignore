@@ -34,3 +34,4 @@ go.work.sum
 
 # Test Lock File
 .backupWithRclone/lock
+.backupWithRclone/exec.log
