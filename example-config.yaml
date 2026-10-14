@@ -15,4 +15,5 @@ dirs:
     target_dir: Important_Texts
     excluded_files: ["*.aux", "*.log"]
     excluded_dirs: [.github]
+    extra_rclone_params: ["--links"]
   - source_dir: ~/Development/Projects

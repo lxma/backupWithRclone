@@ -71,6 +71,14 @@
               "type": "string",
               "minLength": 1
             }
+          },
+          "rclone_params": {
+            "description": "Extra parameters for rclone specific to this directory",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         }
       }

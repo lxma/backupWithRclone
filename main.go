@@ -102,7 +102,7 @@ func updateDir(db *sql.DB, dir string, oldCutoff time.Time) {
 		dbAccess.MarkSubDirStarted(db, updateDir)
 		log.Printf("Start updating subdir %s\n", updateDir)
 		destination := addPathToRcloneDestination(getTargetPath(cleanDir, updateDir, config.GConfig.Dirs[dir].TargetDir))
-		if err := RunRclone(updateDir, destination, exclusions); err != nil {
+		if err := RunRclone(updateDir, destination, exclusions, config.GConfig.Dirs[dir].RcloneParams); err != nil {
 			panic(err)
 		}
 		dbAccess.MarkSubDirCompleted(db, updateDir)
@@ -127,14 +127,16 @@ func addPathToRcloneDestination(targetDir string) string {
 	return filepath.Join(config.GConfig.RcloneDestinationPrefix, targetDir)
 }
 
-func RunRclone(sourceDir, destination string, exclusions exclusions.TExclusions) error {
+func RunRclone(sourceDir, destination string, exclusions exclusions.TExclusions, configParams []string) error {
 	extraArgs := []string{"sync", sourceDir, destination, "--delete-excluded", "--exclude-from", "-"}
 	if gInteractiveMode {
 		extraArgs = append(extraArgs, "-P")
 	} else {
 		extraArgs = append(extraArgs, "-v", "--stats", "0")
 	}
+	extraArgs = append(extraArgs, configParams...)
 	extraArgs = append(extraArgs, gExtraRcloneArgs...)
+
 	cmd := exec.Command("rclone", extraArgs...)
 
 	cmd.Stdin = strings.NewReader(strings.Join(exclusions.RclonePatterns, "\n") + "\n")
