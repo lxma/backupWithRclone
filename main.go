@@ -4,6 +4,7 @@ import (
 	"backupWithRclone/config"
 	"backupWithRclone/dbAccess"
 	"backupWithRclone/exclusions"
+	"backupWithRclone/executor"
 	"backupWithRclone/log"
 	"backupWithRclone/tools"
 	"database/sql"
@@ -11,7 +12,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -31,7 +31,7 @@ var gInteractiveMode bool
 var gForceRootSync bool
 
 func main() {
-	config.LoadConfig()
+	config.InitConfig()
 	log.InitLog()
 	defer log.CloseLog()
 
@@ -78,15 +78,11 @@ func main() {
 
 func updateDir(db *sql.DB, dir string, oldCutoff time.Time) {
 	log.Printf("\nUpdating main dir %s\n", dir)
-	expandedDir, err := tools.ExpandHome(dir)
-	if err != nil {
-		log.Printf("Error expanding backup dir %s: %s", dir, err)
-		panic(fmt.Errorf("Error expanding backup dir %s: %s", dir, err))
-	}
-	cleanDir := filepath.Clean(expandedDir)
+	cleanDir := filepath.Clean(tools.ExpandHome(dir))
 	exclusions := exclusions.MakeExclusions(dir)
 
 	var updateDirs []string
+	var err error
 	if gForceRootSync {
 		updateDirs = []string{cleanDir}
 	} else {
@@ -102,9 +98,7 @@ func updateDir(db *sql.DB, dir string, oldCutoff time.Time) {
 		dbAccess.MarkSubDirStarted(db, updateDir)
 		log.Printf("Start updating subdir %s\n", updateDir)
 		destination := addPathToRcloneDestination(getTargetPath(cleanDir, updateDir, config.GConfig.Dirs[dir].TargetDir))
-		if err := RunRclone(updateDir, destination, exclusions, config.GConfig.Dirs[dir].RcloneParams); err != nil {
-			panic(err)
-		}
+		runRclone(updateDir, destination, exclusions.RclonePatterns, config.GConfig.Dirs[dir].RcloneParams)
 		dbAccess.MarkSubDirCompleted(db, updateDir)
 		log.Printf("Completed updating subdir %s\n", updateDir)
 	}
@@ -127,8 +121,8 @@ func addPathToRcloneDestination(targetDir string) string {
 	return filepath.Join(config.GConfig.RcloneDestinationPrefix, targetDir)
 }
 
-func RunRclone(sourceDir, destination string, exclusions exclusions.TExclusions, configParams []string) error {
-	extraArgs := []string{"sync", sourceDir, destination, "--delete-excluded", "--exclude-from", "-"}
+func runRclone(sourceDir, destination string, rclonePatterns []string, configParams []string) {
+	extraArgs := []string{sourceDir, destination, "--delete-excluded", "--exclude-from", "-"}
 	if gInteractiveMode {
 		extraArgs = append(extraArgs, "-P")
 	} else {
@@ -137,18 +131,7 @@ func RunRclone(sourceDir, destination string, exclusions exclusions.TExclusions,
 	extraArgs = append(extraArgs, configParams...)
 	extraArgs = append(extraArgs, gExtraRcloneArgs...)
 
-	cmd := exec.Command("rclone", extraArgs...)
-
-	cmd.Stdin = strings.NewReader(strings.Join(exclusions.RclonePatterns, "\n") + "\n")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		log.Printf("error running rclone command: %v\n", err)
-		return fmt.Errorf("rclone failed: %v", err)
-	}
-
-	return nil
+	executor.ExecuteRclone(extraArgs, rclonePatterns)
 }
 
 // AcquireInstanceLock returns an open file that must remain open

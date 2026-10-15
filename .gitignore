@@ -14,7 +14,6 @@ backupWithRclone
 
 # Test dirs
 testdirs
-backups.sqlite
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
@@ -33,5 +32,5 @@ go.work.sum
 .idea/
 
 # Test Lock File
-.backupWithRclone/lock
-.backupWithRclone/exec.log
+testBackupDir/lock
+testBackupDir/exec.log

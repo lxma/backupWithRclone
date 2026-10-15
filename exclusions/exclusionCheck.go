@@ -3,7 +3,6 @@ package exclusions
 import (
 	"backupWithRclone/config"
 	"backupWithRclone/log"
-	"os"
 	"path/filepath"
 
 	"github.com/lxma/gotools/v2"
@@ -41,10 +40,10 @@ func isFilenameExcluded(filename string, excludeList []string) bool {
 	return false
 }
 
-func (e TExclusions) IsEntryExcluded(dirEntry os.FileInfo) bool {
-	if dirEntry.IsDir() {
-		return isFilenameExcluded(dirEntry.Name(), e.ExcludeDirs)
+func (e TExclusions) IsEntryExcluded(name string, isDir bool) bool {
+	if isDir {
+		return isFilenameExcluded(name, e.ExcludeDirs)
 	} else {
-		return isFilenameExcluded(dirEntry.Name(), e.ExcludeFiles)
+		return isFilenameExcluded(name, e.ExcludeFiles)
 	}
 }

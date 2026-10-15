@@ -53,7 +53,7 @@ func scanDir(dir string, since time.Time, exclusions exclusions.TExclusions) (ch
 	for {
 		entries, readErr := f.Readdir(cBatchSize)
 		for _, entry := range entries {
-			if exclusions.IsEntryExcluded(entry) {
+			if exclusions.IsEntryExcluded(entry.Name(), entry.IsDir()) {
 				continue
 			}
 			fullEntryPath := filepath.Join(dir, entry.Name())

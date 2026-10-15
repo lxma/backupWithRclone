@@ -10,9 +10,8 @@ import (
 
 //goland:noinspection SqlResolve
 func TestInMemoryDB(t *testing.T) {
-	db := InitTestDB() //"/Users/d048927/GitHub/backupWithRclone/.backupWithRclone/backups.sqlite")
 	var filename string
-	err := db.QueryRow(`
+	err := gDB.QueryRow(`
         SELECT file
         FROM pragma_database_list
         WHERE name = 'main'
@@ -23,22 +22,21 @@ func TestInMemoryDB(t *testing.T) {
 }
 
 func TestDBFlowWorks(t *testing.T) {
-	db := InitTestDB()
 	const cTestDir = "TestDir"
 	const cSubDir1 = "subdir1"
 	const cSubDir2 = "subdir2"
 
 	// ensure the DB flow works and the cutoff timestamp is recorded appropriately
-	StoreMainDirectoryStates(db, []string{cTestDir})
-	StartStoringMainDir(db, cTestDir, []string{cSubDir1, cSubDir2}, time.Now())
-	MarkSubDirStarted(db, cSubDir1)
-	MarkSubDirCompleted(db, cSubDir1)
-	MarkSubDirStarted(db, cSubDir2)
-	MarkSubDirCompleted(db, cSubDir2)
+	StoreMainDirectoryStates(gDB, []string{cTestDir})
+	StartStoringMainDir(gDB, cTestDir, []string{cSubDir1, cSubDir2}, time.Now())
+	MarkSubDirStarted(gDB, cSubDir1)
+	MarkSubDirCompleted(gDB, cSubDir1)
+	MarkSubDirStarted(gDB, cSubDir2)
+	MarkSubDirCompleted(gDB, cSubDir2)
 	cutoffTimestamp := time.Now()
 	wrongCutoffTimestamp := time.Now().Add(-time.Hour)
-	MarkMainDirCompleted(db, cTestDir, cutoffTimestamp)
-	cutoffTimestamps := ReadCutoffTimestamps(db)
+	MarkMainDirCompleted(gDB, cTestDir, cutoffTimestamp)
+	cutoffTimestamps := ReadCutoffTimestamps(gDB)
 	assert.True(t, gotools.MapHasKey(cutoffTimestamps, cTestDir))
 	assert.Equal(t, DateToDbDate(cutoffTimestamp), DateToDbDate(cutoffTimestamps[cTestDir]))
 	assert.NotEqual(t, DateToDbDate(wrongCutoffTimestamp), DateToDbDate(cutoffTimestamps[cTestDir]))
