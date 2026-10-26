@@ -53,20 +53,18 @@ func main() {
 	defer db.Close()
 
 	backupDates := dbAccess.ReadCutoffTimestamps(db)
-	// sort dirs by recent update time ascending
 
+	// sort dirs by recent update time ascending
 	sourceDirs := gotools.Map(config.GConfig.DirsConfig, func(dirConfig config.TDirConfig) string {
 		return dirConfig.SourceDir
-	}) // gotools.GetKeys(config.GConfig.Dirs)
-
-	dirsAndCutoffs := make([]tDirAndCutoff, len(sourceDirs))
-	for idx, dir := range sourceDirs {
-		date, ok := backupDates[dir]
+	})
+	dirsAndCutoffs := gotools.Map(sourceDirs, func(sourceDir string) tDirAndCutoff {
+		date, ok := backupDates[sourceDir]
 		if !ok {
 			date = time.Time{}
 		}
-		dirsAndCutoffs[idx] = tDirAndCutoff{dir, date}
-	}
+		return tDirAndCutoff{dir: sourceDir, cutoff: date}
+	})
 	gotools.SortStable(dirsAndCutoffs, func(a, b tDirAndCutoff) bool {
 		return b.cutoff.After(a.cutoff)
 	})
