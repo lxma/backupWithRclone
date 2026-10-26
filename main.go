@@ -55,7 +55,9 @@ func main() {
 	backupDates := dbAccess.ReadCutoffTimestamps(db)
 	// sort dirs by recent update time ascending
 
-	sourceDirs := gotools.GetKeys(config.GConfig.Dirs)
+	sourceDirs := gotools.Map(config.GConfig.DirsConfig, func(dirConfig config.TDirConfig) string {
+		return dirConfig.SourceDir
+	}) // gotools.GetKeys(config.GConfig.Dirs)
 
 	dirsAndCutoffs := make([]tDirAndCutoff, len(sourceDirs))
 	for idx, dir := range sourceDirs {
