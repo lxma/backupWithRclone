@@ -9,6 +9,9 @@
 *.dylib
 backupWithRclone
 
+# OS
+.DS_Store
+
 # Test binary, built with `go test -c`
 *.test
 
@@ -34,3 +37,4 @@ go.work.sum
 # Test Lock File
 testBackupDir/lock
 testBackupDir/exec.log
+/testBackupDir/exec.logger

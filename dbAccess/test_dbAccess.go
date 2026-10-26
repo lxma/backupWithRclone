@@ -5,6 +5,7 @@ package dbAccess
 import (
 	"backupWithRclone/config"
 	"database/sql"
+	"fmt"
 )
 
 const cMemoryDb = ":memory:"
@@ -28,6 +29,7 @@ func InitTestDB() {
 
 // Init Test DB
 var _ = func() struct{} {
+	fmt.Println("Setup test DB")
 	InitTestDB()
 	return struct{}{}
 }()

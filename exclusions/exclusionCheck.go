@@ -2,7 +2,7 @@ package exclusions
 
 import (
 	"backupWithRclone/config"
-	"backupWithRclone/log"
+	"backupWithRclone/logger"
 	"path/filepath"
 
 	"github.com/lxma/gotools/v2"
@@ -31,7 +31,7 @@ func isFilenameExcluded(filename string, excludeList []string) bool {
 		matched, err := filepath.Match(exclude, filename)
 		if err != nil {
 			// such errors should have been ruled out when reading the configuration
-			log.Printf("error when matching filename pattern '%s': %v", exclude, err)
+			logger.Printf("error when matching filename pattern '%s': %v", exclude, err)
 		}
 		if matched {
 			return true

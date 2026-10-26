@@ -5,19 +5,18 @@ import (
 	"backupWithRclone/dbAccess"
 	"backupWithRclone/exclusions"
 	"backupWithRclone/executor"
-	"backupWithRclone/log"
+	"backupWithRclone/findDirs"
+	"backupWithRclone/lock"
+	"backupWithRclone/logger"
 	"backupWithRclone/tools"
 	"database/sql"
-	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/lxma/gotools/v2"
-	"golang.org/x/sys/unix"
 )
 
 type tDirAndCutoff struct {
@@ -32,8 +31,8 @@ var gForceRootSync bool
 
 func main() {
 	config.InitConfig()
-	log.InitLog()
-	defer log.CloseLog()
+	log := logger.InitLog()
+	defer log.Close()
 
 	flag.Func("x", "Extra rclone args", func(arg string) error {
 		gExtraRcloneArgs = append(gExtraRcloneArgs, arg)
@@ -43,12 +42,12 @@ func main() {
 	flag.BoolVar(&gInteractiveMode, "i", false, "Use output for interactive usage")
 	flag.Parse()
 
-	lock, ok := AcquireInstanceLock()
-	if !ok {
+	lock, lockOk := lock.AcquireLock()
+	if !lockOk {
 		fmt.Println("A parallel instance is already running, quitting")
 		return
 	}
-	defer lock.Close()
+	defer lock.ReleaseLock()
 
 	db := dbAccess.InitDB(filepath.Join(config.GBackupDir, "backups.sqlite"))
 	defer db.Close()
@@ -77,7 +76,7 @@ func main() {
 }
 
 func updateDir(db *sql.DB, dir string, oldCutoff time.Time) {
-	log.Printf("\nUpdating main dir %s\n", dir)
+	logger.Printf("\nUpdating main dir %s\n", dir)
 	cleanDir := filepath.Clean(tools.ExpandHome(dir))
 	exclusions := exclusions.MakeExclusions(dir)
 
@@ -86,9 +85,9 @@ func updateDir(db *sql.DB, dir string, oldCutoff time.Time) {
 	if gForceRootSync {
 		updateDirs = []string{cleanDir}
 	} else {
-		updateDirs, err = findDirsForUpdate(cleanDir, oldCutoff, exclusions)
+		updateDirs, err = findDirs.FindDirsForUpdate(cleanDir, oldCutoff, exclusions)
 		if err != nil {
-			log.Printf("error finding dirs for update in %s: %v\n", dir, err)
+			logger.Printf("error finding dirs for update in %s: %v\n", dir, err)
 			return
 		}
 	}
@@ -96,11 +95,11 @@ func updateDir(db *sql.DB, dir string, oldCutoff time.Time) {
 	dbAccess.StartStoringMainDir(db, dir, updateDirs, newCutoff)
 	for _, updateDir := range updateDirs {
 		dbAccess.MarkSubDirStarted(db, updateDir)
-		log.Printf("Start updating subdir %s\n", updateDir)
+		logger.Printf("Start updating subdir %s\n", updateDir)
 		destination := addPathToRcloneDestination(getTargetPath(cleanDir, updateDir, config.GConfig.Dirs[dir].TargetDir))
 		runRclone(updateDir, destination, exclusions.RclonePatterns, config.GConfig.Dirs[dir].RcloneParams)
 		dbAccess.MarkSubDirCompleted(db, updateDir)
-		log.Printf("Completed updating subdir %s\n", updateDir)
+		logger.Printf("Completed updating subdir %s\n", updateDir)
 	}
 	dbAccess.MarkMainDirCompleted(db, dir, newCutoff)
 }
@@ -132,29 +131,4 @@ func runRclone(sourceDir, destination string, rclonePatterns []string, configPar
 	extraArgs = append(extraArgs, gExtraRcloneArgs...)
 
 	executor.ExecuteRclone(extraArgs, rclonePatterns)
-}
-
-// AcquireInstanceLock returns an open file that must remain open
-// for the entire protected operation. Close it to release the lock.
-func AcquireInstanceLock() (*os.File, bool) {
-	lockFile := filepath.Join(config.GBackupDir, "lock")
-	file, err := os.OpenFile(lockFile, os.O_CREATE|os.O_RDWR, 0600)
-	if err != nil {
-		log.Printf("error opening lock file %s: %v\n", lockFile, err)
-		panic(fmt.Errorf("failed to open lock file %s: %v", lockFile, err))
-	}
-
-	err = unix.Flock(int(file.Fd()), unix.LOCK_EX|unix.LOCK_NB)
-	if err != nil {
-		file.Close()
-
-		if errors.Is(err, unix.EWOULDBLOCK) ||
-			errors.Is(err, unix.EAGAIN) {
-			return nil, false
-		}
-		log.Printf("error acquiring instance lock %s: %v\n", lockFile, err)
-		panic(fmt.Errorf("error acquiring instance lock %s: %v", lockFile, err))
-	}
-
-	return file, true
 }

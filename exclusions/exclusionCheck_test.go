@@ -3,6 +3,7 @@
 package exclusions
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -22,4 +23,14 @@ func TestFlow(t *testing.T) {
 	assert.False(t, excl.IsEntryExcluded("not_excluded", true))
 	assert.False(t, excl.IsEntryExcluded("excludeddir1", false))
 	assert.False(t, excl.IsEntryExcluded("excludedfile1", true))
+
+	slices.Sort(excl.RclonePatterns)
+	assert.Equal(t, []string{
+		"ex*dir1/",
+		"ex*dir2/",
+		"ex*file1",
+		"ex*file2",
+		"excludesubdir/",
+		"excludesubfile"},
+		excl.RclonePatterns)
 }

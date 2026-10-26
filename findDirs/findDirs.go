@@ -1,4 +1,4 @@
-package main
+package findDirs
 
 import (
 	"backupWithRclone/config"
@@ -13,7 +13,7 @@ import (
 	"github.com/lxma/golist/v2"
 )
 
-func findDirsForUpdate(root string, since time.Time, exclusions exclusions.TExclusions) ([]string, error) {
+func FindDirsForUpdate(root string, since time.Time, exclusions exclusions.TExclusions) ([]string, error) {
 	f, err := os.Open(root)
 	if err != nil {
 		return nil, err

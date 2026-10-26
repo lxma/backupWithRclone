@@ -1,7 +1,8 @@
 package executor
 
 import (
-	"backupWithRclone/log"
+	"backupWithRclone/logger"
+	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -10,7 +11,11 @@ import (
 var ExecuteRclone func(extraArgs []string, rclonePatterns []string)
 
 func init() {
-	ExecuteRclone = executeRclone
+	if ExecuteRclone == nil {
+		fmt.Println("Setup productive executor")
+
+		ExecuteRclone = executeRclone
+	}
 }
 
 func executeRclone(extraArgs []string, rclonePatterns []string) {
@@ -21,6 +26,6 @@ func executeRclone(extraArgs []string, rclonePatterns []string) {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		log.Printf("error running rclone command: %v\n", err)
+		logger.Printf("error running rclone command: %v\n", err)
 	}
 }

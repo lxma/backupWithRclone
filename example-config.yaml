@@ -13,7 +13,7 @@ dirs:
   - source_dir: ~/Pictures
   - source_dir: ~/Texts/Important
     target_dir: Important_Texts
-    excluded_files: ["*.aux", "*.log"]
+    excluded_files: ["*.aux", "*.logger"]
     excluded_dirs: [.github]
     extra_rclone_params: ["--links"]
   - source_dir: ~/Development/Projects
