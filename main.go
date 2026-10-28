@@ -76,7 +76,7 @@ func main() {
 }
 
 func updateDir(db *sql.DB, dir string, oldCutoff time.Time) {
-	logger.Printf("\nUpdating main dir %s\n", dir)
+	logger.Printf("###############################\n## Updating main dir %s\n", dir)
 	cleanDir := filepath.Clean(tools.ExpandHome(dir))
 	exclusions := exclusions.MakeExclusions(dir)
 

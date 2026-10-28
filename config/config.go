@@ -76,7 +76,6 @@ func determineBackupDir() {
 	if GBackupDir != "" {
 		return
 	}
-	fmt.Println("Setting Backup Dir")
 	GBackupDir, _ = os.LookupEnv(cBackupWithRcloneDirEnv)
 	if GBackupDir == "" {
 		GBackupDir = cDefaultBackupDir
@@ -104,7 +103,6 @@ func InitConfig() {
 	GBackupDir = tools.ExpandHome(GBackupDir)
 	configFilename := getConfigFilename()
 	f, err := os.Open(configFilename)
-	fmt.Println(os.Getwd())
 	gotools.Assert(err == nil, "error when opening configuration %s: %v", configFilename, err)
 
 	defer f.Close()
