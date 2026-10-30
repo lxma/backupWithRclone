@@ -79,6 +79,10 @@
               "type": "string",
               "minLength": 1
             }
+          },
+          "always_force": {
+            "description": "Always force call to rclone - e.g. because files behind soft links are detected",
+            "type": "boolean"
           }
         }
       }
