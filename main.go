@@ -76,13 +76,14 @@ func main() {
 }
 
 func updateDir(db *sql.DB, dir string, oldCutoff time.Time) {
-	logger.Printf("###############################\n## Updating main dir %s\n", dir)
+	logger.Printf("##############################################################\n")
+	logger.Printf("## Updating main dir %s\n", dir)
 	cleanDir := filepath.Clean(tools.ExpandHome(dir))
 	exclusions := exclusions.MakeExclusions(dir)
 
 	var updateDirs []string
 	var err error
-	if gForceRootSync {
+	if gForceRootSync || config.GConfig.Dirs[dir].AlwaysForce {
 		updateDirs = []string{cleanDir}
 	} else {
 		updateDirs, err = findDirs.FindDirsForUpdate(cleanDir, oldCutoff, exclusions)
@@ -97,9 +98,13 @@ func updateDir(db *sql.DB, dir string, oldCutoff time.Time) {
 		dbAccess.MarkSubDirStarted(db, updateDir)
 		logger.Printf("Start updating subdir %s\n", updateDir)
 		destination := addPathToRcloneDestination(getTargetPath(cleanDir, updateDir, config.GConfig.Dirs[dir].TargetDir))
-		runRclone(updateDir, destination, exclusions.RclonePatterns, config.GConfig.Dirs[dir].RcloneParams)
-		dbAccess.MarkSubDirCompleted(db, updateDir)
-		logger.Printf("Completed updating subdir %s\n", updateDir)
+		ok := runRclone(updateDir, destination, exclusions.RclonePatterns, config.GConfig.Dirs[dir].RcloneParams)
+		if ok {
+			dbAccess.MarkSubDirCompleted(db, updateDir)
+			logger.Printf("Completed updating subdir %s\n", updateDir)
+		} else {
+			logger.Printf("Failed updating subdir %s successfully\n", updateDir)
+		}
 	}
 	dbAccess.MarkMainDirCompleted(db, dir, newCutoff)
 }
@@ -120,7 +125,7 @@ func addPathToRcloneDestination(targetDir string) string {
 	return filepath.Join(config.GConfig.RcloneDestinationPrefix, targetDir)
 }
 
-func runRclone(sourceDir, destination string, rclonePatterns []string, configParams []string) {
+func runRclone(sourceDir, destination string, rclonePatterns []string, configParams []string) bool {
 	extraArgs := []string{sourceDir, destination, "--delete-excluded", "--exclude-from", "-"}
 	if gInteractiveMode {
 		extraArgs = append(extraArgs, "-P")
@@ -130,5 +135,5 @@ func runRclone(sourceDir, destination string, rclonePatterns []string, configPar
 	extraArgs = append(extraArgs, configParams...)
 	extraArgs = append(extraArgs, gExtraRcloneArgs...)
 
-	executor.ExecuteRclone(extraArgs, rclonePatterns)
+	return executor.ExecuteRclone(extraArgs, rclonePatterns)
 }

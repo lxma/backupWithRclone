@@ -10,14 +10,16 @@ type TTestExecution struct {
 }
 
 var GTestExecutions []TTestExecution
+var GTestExecutionRunsOk = true
 
-func executeRcloneForTests(extraArgs []string, rclonePatterns []string) {
+func executeRcloneForTests(extraArgs []string, rclonePatterns []string) bool {
 	GTestExecutions = append(GTestExecutions, TTestExecution{
 		Source:         extraArgs[0],
 		Target:         extraArgs[1],
 		ExtraArgs:      extraArgs[2:],
 		RclonePatterns: rclonePatterns,
 	})
+	return GTestExecutionRunsOk
 }
 
 var _ = func() struct{} {
