@@ -1,23 +1,32 @@
 # backupWithRclone 
 
-Consider this code highly experimental.
+Frankly, this project is overkill. Most of what I do here can be achieved
+in a different way by multiple dedicated rclone calls. And that's probably what
+I would advise you to do.
 
-The code is not yet in a releasable state. Basic functionality and useful documentation is lacking.
-The program structure is questionable. It rather reflects my personal leaning process than
-stable software.
+Originally, I had certain improvements in mind that in the end did not really
+make sense and are removed from the project. The rest is probably not sufficiently
+helpful for anyone but myself.
 
-That being said: feel free to look into it.
+However, for me, playing around with different styles of automation was and still is fun.
+
+If you are curious feel free to look into this code.
 
 # Functionality
-My main issue with `rclone` is that I like to regularly sync directories with many files that
-mostly don't change. If I call `rclone sync` on such a directory, it takes ages to discover there
-is nothing to do. When only few files changed in some small subdirectory, it still browses the entire tree.
 
-Instead, backupWithRclone calls `rclone sync` only for those parts of a directory tree that have actually
-been changed. Also, it can do this for multiple directories.
+I'd like to backup basically all of my home directory – except for some files.
+This, I want to be a whitelist rather than a blacklist. I want to be able to
+backup several files, and not all of them in the same manner. E.g., I want
+one directory to store a selected list of movies I want to preserve. This
+directory contains soft links to those movies. For backing up this subdir, I
+want to use the rsync argument `--copy-links` that I don't want to use for
+other directories. 
 
-You can configure multiple directories that are supposed to be synced using `rclone sync` (see `example-config.yaml`). 
-`backupWithRclone` searches these directories for recent changes and will perform updates accordingly.
+Originally, there were also other thinks I wanted to change, which turned out 
+to be nonsense.
+
+You can configure multiple directories that are supposed to be synced using
+`rclone sync` (see `example-config.yaml`).
 
 The configuration should be stored in a directory `~/.backupWithRclone` and named `config.yaml`. You can specify
 a different directory with the environment variable `BACKUP_WITH_RCLONE_DIR`.
