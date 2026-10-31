@@ -12,3 +12,4 @@ dirs:
   - source_dir: ./testdirs/changed_path_indirect
   - source_dir: ./testdirs/changed_subpaths
     target_dir: output
+

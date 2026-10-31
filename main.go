@@ -5,7 +5,6 @@ import (
 	"backupWithRclone/dbAccess"
 	"backupWithRclone/exclusions"
 	"backupWithRclone/executor"
-	"backupWithRclone/findDirs"
 	"backupWithRclone/lock"
 	"backupWithRclone/logger"
 	"backupWithRclone/tools"
@@ -27,7 +26,6 @@ type tDirAndCutoff struct {
 // flags
 var gExtraRcloneArgs []string
 var gInteractiveMode bool
-var gForceRootSync bool
 
 func main() {
 	config.InitConfig()
@@ -38,7 +36,6 @@ func main() {
 		gExtraRcloneArgs = append(gExtraRcloneArgs, arg)
 		return nil
 	})
-	flag.BoolVar(&gForceRootSync, "f", false, "Force sync each directory on root level")
 	flag.BoolVar(&gInteractiveMode, "i", false, "Use output for interactive usage")
 	flag.Parse()
 
@@ -78,43 +75,22 @@ func main() {
 func updateDir(db *sql.DB, dir string, oldCutoff time.Time) {
 	logger.Printf("##############################################################\n")
 	logger.Printf("## Updating main dir %s\n", dir)
+
 	cleanDir := filepath.Clean(tools.ExpandHome(dir))
 	exclusions := exclusions.MakeExclusions(dir)
 
-	var updateDirs []string
-	var err error
-	if gForceRootSync || config.GConfig.Dirs[dir].AlwaysForce {
-		updateDirs = []string{cleanDir}
-	} else {
-		updateDirs, err = findDirs.FindDirsForUpdate(cleanDir, oldCutoff, exclusions)
-		if err != nil {
-			logger.Printf("error finding dirs for update in %s: %v\n", dir, err)
-			return
-		}
-	}
 	newCutoff := time.Now().Add(-time.Second)
-	dbAccess.StartStoringMainDir(db, dir, updateDirs, newCutoff)
-	for _, updateDir := range updateDirs {
-		dbAccess.MarkSubDirStarted(db, updateDir)
-		logger.Printf("Start updating subdir %s\n", updateDir)
-		destination := addPathToRcloneDestination(getTargetPath(cleanDir, updateDir, config.GConfig.Dirs[dir].TargetDir))
-		ok := runRclone(updateDir, destination, exclusions.RclonePatterns, config.GConfig.Dirs[dir].RcloneParams)
-		if ok {
-			dbAccess.MarkSubDirCompleted(db, updateDir)
-			logger.Printf("Completed updating subdir %s\n", updateDir)
-		} else {
-			logger.Printf("Failed updating subdir %s successfully\n", updateDir)
-		}
-	}
-	dbAccess.MarkMainDirCompleted(db, dir, newCutoff)
-}
+	dbAccess.MarkUpdateDirStarted(db, dir, newCutoff)
 
-func getTargetPath(rootDir, updateDir, targetDir string) string {
-	gotools.Assert(strings.HasPrefix(updateDir, rootDir))
-	if rootDir == updateDir {
-		return filepath.Clean(targetDir)
+	destination := addPathToRcloneDestination(filepath.Clean(config.GConfig.Dirs[dir].TargetDir))
+	ok := runRclone(cleanDir, destination, exclusions.RclonePatterns, config.GConfig.Dirs[dir].RcloneParams, config.GConfig.Dirs[dir].CopyLinks)
+	if ok {
+		logger.Printf("Completed updating %s\n", cleanDir)
+	} else {
+		logger.Printf("Failed updating %s\n", cleanDir)
 	}
-	return filepath.Join(filepath.Clean(targetDir), updateDir[len(rootDir)+1:])
+
+	dbAccess.MarkUpdateDirCompleted(db, dir, newCutoff)
 }
 
 func addPathToRcloneDestination(targetDir string) string {
@@ -125,7 +101,7 @@ func addPathToRcloneDestination(targetDir string) string {
 	return filepath.Join(config.GConfig.RcloneDestinationPrefix, targetDir)
 }
 
-func runRclone(sourceDir, destination string, rclonePatterns []string, configParams []string) bool {
+func runRclone(sourceDir, destination string, rclonePatterns []string, configParams []string, copyLinks bool) bool {
 	extraArgs := []string{sourceDir, destination, "--delete-excluded", "--exclude-from", "-"}
 	if gInteractiveMode {
 		extraArgs = append(extraArgs, "-P")
@@ -134,6 +110,15 @@ func runRclone(sourceDir, destination string, rclonePatterns []string, configPar
 	}
 	extraArgs = append(extraArgs, configParams...)
 	extraArgs = append(extraArgs, gExtraRcloneArgs...)
+
+	// Handing of soft links
+	if copyLinks {
+		// Copy links as content rather than storing the links
+		extraArgs = append(extraArgs, "--copy-links")
+	} else {
+		// Store only the softlinks
+		extraArgs = append(extraArgs, "--links")
+	}
 
 	return executor.ExecuteRclone(extraArgs, rclonePatterns)
 }

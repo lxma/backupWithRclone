@@ -80,8 +80,8 @@
               "minLength": 1
             }
           },
-          "always_force": {
-            "description": "Always force call to rclone - e.g. because files behind soft links are detected",
+          "copy_links": {
+            "description": "Copy content of links (not just the link themselves",
             "type": "boolean"
           }
         }

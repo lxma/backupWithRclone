@@ -28,14 +28,14 @@ func TestDBFlowWorks(t *testing.T) {
 
 	// ensure the DB flow works and the cutoff timestamp is recorded appropriately
 	StoreMainDirectoryStates(gDB, []string{cTestDir})
-	StartStoringMainDir(gDB, cTestDir, []string{cSubDir1, cSubDir2}, time.Now())
+	MarkUpdateDirStarted(gDB, cTestDir, time.Now())
 	MarkSubDirStarted(gDB, cSubDir1)
 	MarkSubDirCompleted(gDB, cSubDir1)
 	MarkSubDirStarted(gDB, cSubDir2)
 	MarkSubDirCompleted(gDB, cSubDir2)
 	cutoffTimestamp := time.Now()
 	wrongCutoffTimestamp := time.Now().Add(-time.Hour)
-	MarkMainDirCompleted(gDB, cTestDir, cutoffTimestamp)
+	MarkUpdateDirCompleted(gDB, cTestDir, cutoffTimestamp)
 	cutoffTimestamps := ReadCutoffTimestamps(gDB)
 	assert.True(t, gotools.MapHasKey(cutoffTimestamps, cTestDir))
 	assert.Equal(t, DateToDbDate(cutoffTimestamp), DateToDbDate(cutoffTimestamps[cTestDir]))

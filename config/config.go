@@ -29,7 +29,7 @@ type TDirConfig struct {
 	ExcludeDirs    []string `yaml:"exclude_dirs"`
 	ExcludeFiles   []string `yaml:"exclude_files"`
 	RcloneParams   []string `yaml:"rclone_params"`
-	AlwaysForce    bool     `yaml:"always_force"`
+	CopyLinks      bool     `yaml:"copy_links"`
 }
 
 const cBackupWithRcloneDirEnv = "BACKUP_WITH_RCLONE_DIR"

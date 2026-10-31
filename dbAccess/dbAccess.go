@@ -141,47 +141,14 @@ func StoreMainDirectoryStates(db *sql.DB, mainDirs []string) {
 	}
 }
 
-func StartStoringMainDir(db *sql.DB, mainDir string, subDirs []string, cutoff time.Time) {
-	if len(subDirs) == 0 {
-		return
-	}
-
-	tx := beginTransaction(db)
-	defer tx.Rollback()
-
-	markMainDirStarted(tx, mainDir, cutoff)
-
-	if _, err := tx.Exec(`DELETE FROM syncing_subdirs`); err != nil {
-		panic(fmt.Errorf("error clearing handling_dir: %v", err))
-	}
-	stmt, err := tx.Prepare(`INSERT INTO syncing_subdirs (directory,completed,started) VALUES (?,0,0)`)
-	if err != nil {
-		panic(fmt.Errorf("error preparing handling_dir insert: %v", err))
-	}
-	defer stmt.Close()
-
-	for _, subDir := range subDirs {
-		if _, err := stmt.Exec(subDir); err != nil {
-			logger.Printf("error inserting directory %s: %v", subDir, err)
-			panic(fmt.Errorf("insert directory %s: %v", subDir, err))
-		}
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		logger.Printf("error committing transaction: %v", err)
-		panic(fmt.Errorf("commit handling_dir transaction: %v", err))
-	}
-}
-
-func markMainDirStarted(tx *sql.Tx, syncDir string, cutoff time.Time) {
-	if _, err := tx.Exec(`UPDATE syncing_main_dirs SET started = 1, cutoff_timestamp = ? WHERE directory = ?`, DateToDbDate(cutoff), syncDir); err != nil {
+func MarkUpdateDirStarted(db *sql.DB, syncDir string, cutoff time.Time) {
+	if _, err := db.Exec(`UPDATE syncing_main_dirs SET started = 1, cutoff_timestamp = ? WHERE directory = ?`, DateToDbDate(cutoff), syncDir); err != nil {
 		logger.Printf("error updating syncing main_dirs: %v", err)
 		panic(fmt.Errorf("error updating syncinc_dirs for %s: %v", syncDir, err))
 	}
 }
 
-func MarkMainDirCompleted(db *sql.DB, mainDir string, newCutoff time.Time) {
+func MarkUpdateDirCompleted(db *sql.DB, mainDir string, newCutoff time.Time) {
 	if _, err := db.Exec(`UPDATE syncing_main_dirs SET completed = 1 WHERE directory = ?`, mainDir); err != nil {
 		logger.Printf("error updating syncing main_dirs: %v", err)
 		panic(fmt.Errorf("error updating syncinc_dirs for %s: %v", mainDir, err))
