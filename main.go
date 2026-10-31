@@ -29,6 +29,7 @@ var gExtraRcloneArgs []string
 var gInteractiveMode bool
 var gCheckSums bool
 var gCheckSizes bool
+var gNoSort bool
 
 func main() {
 	flag.Func("x", "Extra rclone args", func(arg string) error {
@@ -38,6 +39,7 @@ func main() {
 	flag.BoolVar(&gInteractiveMode, "i", false, "Use output for interactive usage")
 	flag.BoolVar(&gCheckSums, "cc", false, "Perform a check using true checksums")
 	flag.BoolVar(&gCheckSizes, "cs", false, "Perform a check using just file sizes")
+	flag.BoolVar(&gNoSort, "ns", false, "No sort; Perform update of directories in the order they appear in the config file")
 	flag.Parse()
 
 	config.InitConfig()
@@ -78,7 +80,7 @@ func main() {
 		}
 		return tDirAndCutoff{dir: sourceDir, cutoff: date}
 	})
-	if !(gCheckSizes || gCheckSums) {
+	if gNoSort {
 		gotools.SortStable(dirsAndCutoffs, func(a, b tDirAndCutoff) bool {
 			return b.cutoff.After(a.cutoff)
 		})
