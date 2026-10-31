@@ -17,3 +17,11 @@ func TestExpandHome(t *testing.T) {
 	assert.Equal(t, home, ExpandHome("~/"))
 	assert.Equal(t, home, ExpandHome("~"))
 }
+
+func TestSanitizeFilename(t *testing.T) {
+	assert.Equal(t, SanitizeFilename("a"), "a")
+	assert.Equal(t, SanitizeFilename(""), "_")
+	assert.Equal(t, SanitizeFilename("."), "_")
+	assert.Equal(t, SanitizeFilename(".."), "_")
+	assert.Equal(t, SanitizeFilename("abc/def:ghi/"), "abc_def_ghi_")
+}

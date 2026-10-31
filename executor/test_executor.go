@@ -3,6 +3,7 @@
 package executor
 
 type TTestExecution struct {
+	Command        string
 	Source         string
 	Target         string
 	ExtraArgs      []string
@@ -12,8 +13,9 @@ type TTestExecution struct {
 var GTestExecutions []TTestExecution
 var GTestExecutionRunsOk = true
 
-func executeRcloneForTests(extraArgs []string, rclonePatterns []string) bool {
+func executeRcloneForTests(command string, extraArgs []string, rclonePatterns []string) bool {
 	GTestExecutions = append(GTestExecutions, TTestExecution{
+		Command:        command,
 		Source:         extraArgs[0],
 		Target:         extraArgs[1],
 		ExtraArgs:      extraArgs[2:],

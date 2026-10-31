@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 )
 
 func ExpandHome(path string) string {
@@ -30,4 +31,23 @@ func ExpandHome(path string) string {
 func StopWithErrorMessage(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, format, args...)
 	os.Exit(1)
+}
+
+func SanitizeFilename(filename string) string {
+	filename = strings.Map(func(r rune) rune {
+		switch {
+		case r == '/', r == ':', unicode.IsControl(r):
+			return '_'
+		default:
+			return r
+		}
+	}, filename)
+
+	// Special Cases to avoid strange filenames
+	switch filename {
+	case "", ".", "..":
+		return "_"
+	default:
+		return filename
+	}
 }

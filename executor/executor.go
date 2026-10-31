@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-var ExecuteRclone func(extraArgs []string, rclonePatterns []string) bool
+var ExecuteRclone func(string, []string, []string) bool
 
 func init() {
 	if ExecuteRclone == nil {
@@ -15,8 +15,9 @@ func init() {
 	}
 }
 
-func executeRclone(extraArgs []string, rclonePatterns []string) bool {
-	args := append([]string{"sync"}, extraArgs...)
+func executeRclone(command string, extraArgs []string, rclonePatterns []string) bool {
+	logger.Printf("Running %s %s", command, strings.Join(extraArgs, " "))
+	args := append([]string{command}, extraArgs...)
 	cmd := exec.Command("rclone", args...)
 	cmd.Stdin = strings.NewReader(strings.Join(rclonePatterns, "\n") + "\n")
 	cmd.Stdout = os.Stdout
