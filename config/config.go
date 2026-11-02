@@ -37,6 +37,7 @@ const cDefaultDirSizeFactor = 200
 const cDefaultBackupDir = "~/.backupWithRclone"
 
 var gBackupDir string
+var GVerbose bool
 
 func getConfigFilename(backupDir string) string {
 	return filepath.Join(backupDir, "config.yaml")

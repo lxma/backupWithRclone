@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"backupWithRclone/config"
 	"backupWithRclone/logger"
 	"os"
 	"os/exec"
@@ -16,7 +17,9 @@ func init() {
 }
 
 func executeRclone(command string, extraArgs []string, rclonePatterns []string) bool {
-	logger.Printf("Running %s %s", command, strings.Join(extraArgs, " "))
+	if config.GVerbose {
+		logger.Printf("Running %s %s", command, strings.Join(extraArgs, " "))
+	}
 	args := append([]string{command}, extraArgs...)
 	cmd := exec.Command("rclone", args...)
 	cmd.Stdin = strings.NewReader(strings.Join(rclonePatterns, "\n") + "\n")

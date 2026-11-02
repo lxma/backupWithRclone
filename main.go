@@ -37,6 +37,7 @@ var gInteractiveMode bool
 var gCheckSums bool
 var gCheckSizes bool
 var gNoSort bool
+var gVerbose bool
 
 func main() {
 	flag.Func("x", "Extra rclone args", func(arg string) error {
@@ -47,11 +48,14 @@ func main() {
 	flag.BoolVar(&gCheckSums, "cc", false, "Perform a check using true checksums")
 	flag.BoolVar(&gCheckSizes, "cs", false, "Perform a check using just file sizes")
 	flag.BoolVar(&gNoSort, "ns", false, "No sort; Perform update of directories in the order they appear in the config file")
+	verbose := flag.Bool("v", false, "Verbose output")
 	flag.Parse()
 
 	cfg := config.GetConfig()
 	log := logger.InitLog(cfg.BackupDir)
 	defer log.Close()
+
+	config.GVerbose = *verbose
 
 	if gCheckSizes && gCheckSums {
 		logger.Printf("Error: Can only use one of --cc, --cs (compare either by sizes or by checksums)\n")
@@ -90,7 +94,7 @@ func main() {
 		}
 		return tDirAndCutoff{dir: sourceDir, cutoff: date}
 	})
-	if gNoSort {
+	if !gNoSort {
 		gotools.SortStable(dirsAndCutoffs, func(a, b tDirAndCutoff) bool {
 			return b.cutoff.After(a.cutoff)
 		})
