@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 
 	"github.com/lxma/gotools/v2"
@@ -20,6 +19,7 @@ type TConfig struct {
 	DirSizeFactor           int                   `yaml:"dir_size_factor"`
 	DirsConfig              []TDirConfig          `yaml:"dirs"`
 	Dirs                    map[string]TDirConfig `yaml:"-"`
+	BackupDir               string                `yaml:"-"`
 }
 
 type TDirConfig struct {
@@ -36,11 +36,10 @@ const cBackupWithRcloneDirEnv = "BACKUP_WITH_RCLONE_DIR"
 const cDefaultDirSizeFactor = 200
 const cDefaultBackupDir = "~/.backupWithRclone"
 
-var GConfig TConfig
-var GBackupDir string
+var gBackupDir string
 
-func getConfigFilename() string {
-	return filepath.Join(GBackupDir, "config.yaml")
+func getConfigFilename(backupDir string) string {
+	return filepath.Join(backupDir, "config.yaml")
 }
 
 func getTargetDir(dirConfig TDirConfig) string {
@@ -53,8 +52,8 @@ func getTargetDir(dirConfig TDirConfig) string {
 
 // errorInConfigFile stops the execution gracefully (but with error code) printing
 // the error message
-func errorInConfigFile(format string, args ...any) {
-	fmt.Fprintf(os.Stderr, "Error in config file %s:\n", getConfigFilename())
+func errorInConfigFile(configFileName string, format string, args ...any) {
+	fmt.Fprintf(os.Stderr, "Error in config file %s:\n", configFileName)
 	tools.StopWithErrorMessage(format, args...)
 }
 
@@ -73,81 +72,84 @@ func arePathsRelated(p1, p2 string) bool {
 	return isPathPrefix(p1, p2) || isPathPrefix(p2, p1)
 }
 
-func determineBackupDir() {
-	if GBackupDir != "" {
-		return
+func getBackupDir() string {
+	if gBackupDir != "" {
+		return gBackupDir
 	}
-	GBackupDir, _ = os.LookupEnv(cBackupWithRcloneDirEnv)
-	if GBackupDir == "" {
-		GBackupDir = cDefaultBackupDir
+	gBackupDir, _ = os.LookupEnv(cBackupWithRcloneDirEnv)
+	if gBackupDir == "" {
+		gBackupDir = cDefaultBackupDir
 	}
+	gBackupDir = tools.ExpandHome(gBackupDir)
+	return gBackupDir
 }
 
-func cleanDirsConfig() {
-	GConfig.DirsConfig = gotools.Map(GConfig.DirsConfig, func(dc TDirConfig) TDirConfig {
+func cleanDirsConfig(cfg *TConfig) {
+	cfg.DirsConfig = gotools.Map(cfg.DirsConfig, func(dc TDirConfig) TDirConfig {
 		dc.CleanSourceDir = filepath.Clean(dc.SourceDir)
 		dc.TargetDir = getTargetDir(dc)
 		return dc
 	})
-	GConfig.Dirs = map[string]TDirConfig{}
-	for _, dc := range GConfig.DirsConfig {
-		GConfig.Dirs[dc.SourceDir] = dc
+	cfg.Dirs = map[string]TDirConfig{}
+	for _, dc := range cfg.DirsConfig {
+		cfg.Dirs[dc.SourceDir] = dc
 	}
 }
 
-func InitConfig() {
-	if !reflect.ValueOf(GConfig).IsZero() {
-		return
-	}
-	determineBackupDir()
+func GetConfig() *TConfig {
+	var resultConfig TConfig
+
+	backupDir := getBackupDir()
 	var err error
-	GBackupDir = tools.ExpandHome(GBackupDir)
-	configFilename := getConfigFilename()
+	configFilename := getConfigFilename(backupDir)
 	f, err := os.Open(configFilename)
 	gotools.Assert(err == nil, "error when opening configuration %s: %v", configFilename, err)
-
 	defer f.Close()
 
 	dec := yaml.NewDecoder(f)
 	dec.KnownFields(true)
 
-	if err := dec.Decode(&GConfig); err != nil {
+	if err := dec.Decode(&resultConfig); err != nil {
 		if err == io.EOF {
-			errorInConfigFile("Configuration file is empty")
+			errorInConfigFile(configFilename, "Configuration file is empty")
 		} else {
-			errorInConfigFile("error reading configuration %s: %v", configFilename, err)
+			errorInConfigFile(configFilename, "error reading configuration %s: %v", configFilename, err)
 		}
 	}
 
-	if GConfig.DirSizeFactor == 0 {
-		GConfig.DirSizeFactor = cDefaultDirSizeFactor
+	if resultConfig.DirSizeFactor == 0 {
+		resultConfig.DirSizeFactor = cDefaultDirSizeFactor
 	}
 
-	cleanDirsConfig()
+	resultConfig.BackupDir = backupDir
+
+	cleanDirsConfig(&resultConfig)
 
 	// Ensure no relevant directory is a prefix of another
-	for i := 0; i < len(GConfig.DirsConfig)-1; i++ {
-		for k := i + 1; k < len(GConfig.DirsConfig); k++ {
-			if arePathsRelated(GConfig.DirsConfig[i].SourceDir, GConfig.DirsConfig[k].SourceDir) {
-				errorInConfigFile("overlapping source dirs in config %s found: %s and %s",
-					configFilename, GConfig.DirsConfig[i].SourceDir, GConfig.DirsConfig[k].SourceDir)
+	for i := 0; i < len(resultConfig.DirsConfig)-1; i++ {
+		for k := i + 1; k < len(resultConfig.DirsConfig); k++ {
+			if arePathsRelated(resultConfig.DirsConfig[i].SourceDir, resultConfig.DirsConfig[k].SourceDir) {
+				errorInConfigFile(configFilename, "overlapping source dirs in config %s found: %s and %s",
+					configFilename, resultConfig.DirsConfig[i].SourceDir, resultConfig.DirsConfig[k].SourceDir)
 			}
 
-			if arePathsRelated(getTargetDir(GConfig.DirsConfig[i]), getTargetDir(GConfig.DirsConfig[k])) {
-				errorInConfigFile("overlapping target dirs in config %s found: %s and %s",
-					configFilename, GConfig.DirsConfig[i].TargetDir, GConfig.DirsConfig[k].TargetDir)
+			if arePathsRelated(getTargetDir(resultConfig.DirsConfig[i]), getTargetDir(resultConfig.DirsConfig[k])) {
+				errorInConfigFile(configFilename, "overlapping target dirs in config %s found: %s and %s",
+					configFilename, resultConfig.DirsConfig[i].TargetDir, resultConfig.DirsConfig[k].TargetDir)
 
 			}
 		}
 	}
 
 	// Ensure all filename patterns are ok
-	checkFilenamePatterns(GConfig.ExcludeFiles, "in global exclude files")
-	checkFilenamePatterns(GConfig.ExcludeDirs, "in global exclude dirs")
-	for _, dirConfig := range GConfig.DirsConfig {
+	checkFilenamePatterns(resultConfig.ExcludeFiles, "in global exclude files")
+	checkFilenamePatterns(resultConfig.ExcludeDirs, "in global exclude dirs")
+	for _, dirConfig := range resultConfig.DirsConfig {
 		checkFilenamePatterns(dirConfig.ExcludeFiles, "in exclude files of "+dirConfig.SourceDir)
 		checkFilenamePatterns(dirConfig.ExcludeDirs, "in exclude dirs of "+dirConfig.SourceDir)
 	}
+
+	return &resultConfig
 }
 
 func checkFilenamePatterns(patterns []string, context string) {

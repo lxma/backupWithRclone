@@ -5,6 +5,8 @@ import (
 	"testing"
 )
 
+const cTestBackupDir = "../testBackupDir"
+
 func TestLocking(t *testing.T) {
 	acquired := make(chan bool)
 	attempted := make(chan struct{})
@@ -16,7 +18,7 @@ func TestLocking(t *testing.T) {
 	go func() {
 		defer wg.Done()
 
-		lock, ok := AcquireLock()
+		lock, ok := AcquireLock(cTestBackupDir)
 		acquired <- ok
 
 		if !ok {
@@ -37,14 +39,14 @@ func TestLocking(t *testing.T) {
 			return // Initial acquisition failed; cannot test contention.
 		}
 
-		_, ok := AcquireLock()
+		_, ok := AcquireLock(cTestBackupDir)
 		if ok {
 			t.Error("second goroutine: acquired lock while already held")
 		}
 		close(attempted)
 
 		<-released
-		lock, ok := AcquireLock()
+		lock, ok := AcquireLock(cTestBackupDir)
 		if !ok {
 			t.Error("second goroutine: acquisition failed after release")
 			return

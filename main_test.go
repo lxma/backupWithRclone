@@ -19,3 +19,21 @@ func TestMainStraight(t *testing.T) {
 	assert.NotEmpty(t, executor.GTestExecutions)
 	assert.True(t, executionsContainSource(executor.GTestExecutions, "testdirs/changed_subpaths"))
 }
+
+// The configuration entries are taken from testBackupDir/config.yaml
+func TestFlow(t *testing.T) {
+	excl := makeRcloneExcludePatterns(
+		[]string{"ex*dir1", "ex*dir2"},
+		[]string{"ex*file1", "ex*file2"},
+		[]string{"excludesubdir"},
+		[]string{"excludesubfile"})
+	slices.Sort(excl)
+	assert.Equal(t, []string{
+		"ex*dir1/",
+		"ex*dir2/",
+		"ex*file1",
+		"ex*file2",
+		"excludesubdir/",
+		"excludesubfile"},
+		excl)
+}

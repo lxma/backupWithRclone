@@ -3,9 +3,7 @@
 package dbAccess
 
 import (
-	"backupWithRclone/config"
 	"database/sql"
-	"fmt"
 )
 
 const cMemoryDb = ":memory:"
@@ -17,7 +15,6 @@ func InitTestDB() {
 		return
 	}
 	gInitCalled = true
-	config.InitTestConfig()
 
 	var err error
 	gDB, err = sql.Open("sqlite", cMemoryDb)
@@ -29,7 +26,6 @@ func InitTestDB() {
 
 // Init Test DB
 var _ = func() struct{} {
-	fmt.Println("Setup test DB")
 	InitTestDB()
 	return struct{}{}
 }()

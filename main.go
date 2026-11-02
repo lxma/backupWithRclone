@@ -3,7 +3,6 @@ package main
 import (
 	"backupWithRclone/config"
 	"backupWithRclone/dbAccess"
-	"backupWithRclone/exclusions"
 	"backupWithRclone/executor"
 	"backupWithRclone/lock"
 	"backupWithRclone/logger"
@@ -24,6 +23,14 @@ type tDirAndCutoff struct {
 	cutoff time.Time
 }
 
+type tRunMode string
+
+const (
+	cRunModeSync       tRunMode = "SYNC"
+	cRunModeCheckSums  tRunMode = "CHECK_SUMS"
+	cRunModeCheckSizes tRunMode = "CHECK_SIZES"
+)
+
 // flags
 var gExtraRcloneArgs []string
 var gInteractiveMode bool
@@ -42,35 +49,38 @@ func main() {
 	flag.BoolVar(&gNoSort, "ns", false, "No sort; Perform update of directories in the order they appear in the config file")
 	flag.Parse()
 
-	config.InitConfig()
-	log := logger.InitLog()
+	cfg := config.GetConfig()
+	log := logger.InitLog(cfg.BackupDir)
 	defer log.Close()
 
 	if gCheckSizes && gCheckSums {
 		logger.Printf("Error: Can only use one of --cc, --cs (compare either by sizes or by checksums)\n")
 		os.Exit(1)
 	}
+	runMode := cRunModeSync
 	if gCheckSums {
+		runMode = cRunModeCheckSums
 		logger.Printf("Don't Copy, just check by comparing checksums\n")
 	}
 	if gCheckSizes {
+		runMode = cRunModeCheckSizes
 		logger.Printf("Don't Copy, just check by comparing sizes\n")
 	}
 
-	lock, lockOk := lock.AcquireLock()
+	lock, lockOk := lock.AcquireLock(cfg.BackupDir)
 	if !lockOk {
 		fmt.Println("A parallel instance is already running, quitting")
 		return
 	}
 	defer lock.ReleaseLock()
 
-	db := dbAccess.InitDB(filepath.Join(config.GBackupDir, "backups.sqlite"))
+	db := dbAccess.InitDB(filepath.Join(cfg.BackupDir, "backups.sqlite"))
 	defer db.Close()
 
 	backupDates := dbAccess.ReadCutoffTimestamps(db)
 
 	// sort dirs by recent update time ascending
-	sourceDirs := gotools.Map(config.GConfig.DirsConfig, func(dirConfig config.TDirConfig) string {
+	sourceDirs := gotools.Map(cfg.DirsConfig, func(dirConfig config.TDirConfig) string {
 		return dirConfig.SourceDir
 	})
 	dirsAndCutoffs := gotools.Map(sourceDirs, func(sourceDir string) tDirAndCutoff {
@@ -88,25 +98,28 @@ func main() {
 	dbAccess.StoreMainDirectoryStates(db, sourceDirs)
 
 	for _, dirAndCutoff := range dirsAndCutoffs {
-		updateDir(db, dirAndCutoff.dir)
+		updateDir(db, dirAndCutoff.dir, cfg, runMode)
 	}
 }
 
-func updateDir(db *sql.DB, dir string) {
+func updateDir(db *sql.DB, dir string, cfg *config.TConfig, runMode tRunMode) {
 	logger.Printf("##############################################################\n")
 	logger.Printf("## Updating main dir %s\n", dir)
 
 	cleanDir := filepath.Clean(tools.ExpandHome(dir))
-	exclusions := exclusions.MakeExclusions(dir)
 
 	newCutoff := time.Now().Add(-time.Second)
 	if !(gCheckSizes || gCheckSums) {
 		dbAccess.MarkUpdateDirStarted(db, dir, newCutoff)
 	}
 
-	cleanTargetDir := filepath.Clean(config.GConfig.Dirs[dir].TargetDir)
-	destination := addPathToRcloneDestination(cleanTargetDir)
-	ok := runRclone(cleanDir, destination, cleanTargetDir, exclusions.RclonePatterns, config.GConfig.Dirs[dir].RcloneParams, config.GConfig.Dirs[dir].CopyLinks)
+	cleanTargetDir := filepath.Clean(cfg.Dirs[dir].TargetDir)
+	destination := addPathToRcloneDestination(cleanTargetDir, cfg.RcloneDestinationPrefix)
+	dirConfig := cfg.Dirs[dir]
+	args := getArgs(cleanDir, cleanTargetDir, destination, cfg.BackupDir, runMode, gInteractiveMode, dirConfig.CopyLinks, dirConfig.RcloneParams, gExtraRcloneArgs)
+	excludePatterns := makeRcloneExcludePatterns(cfg.ExcludeDirs, cfg.ExcludeFiles, dirConfig.ExcludeDirs, dirConfig.ExcludeFiles)
+	ok := executor.ExecuteRclone(getCommand(runMode), args, excludePatterns)
+	//	ok := runRclone(cleanDir, destination, cleanTargetDir, exclusions.RclonePatterns, cnf.Dirs[dir].RcloneParams, cnf.Dirs[dir].CopyLinks)
 	if ok {
 		logger.Printf("Completed updating %s\n", cleanDir)
 	} else {
@@ -118,46 +131,69 @@ func updateDir(db *sql.DB, dir string) {
 	}
 }
 
-func addPathToRcloneDestination(targetDir string) string {
-	if strings.HasSuffix(config.GConfig.RcloneDestinationPrefix, ":") ||
-		strings.HasSuffix(config.GConfig.RcloneDestinationPrefix, "/") {
-		return config.GConfig.RcloneDestinationPrefix + targetDir
+func addPathToRcloneDestination(targetDir string, destinationPrefix string) string {
+	if strings.HasSuffix(destinationPrefix, ":") ||
+		strings.HasSuffix(destinationPrefix, "/") {
+		return destinationPrefix + targetDir
 	}
-	return filepath.Join(config.GConfig.RcloneDestinationPrefix, targetDir)
+	return filepath.Join(destinationPrefix, targetDir)
 }
 
-func runRclone(sourceDir, destination string, cleanTargetDir string, rclonePatterns []string, configParams []string, copyLinks bool) bool {
-	extraArgs := []string{sourceDir, destination, "--delete-excluded", "--exclude-from", "-"}
-	if gInteractiveMode {
-		extraArgs = append(extraArgs, "-P")
-	} else {
-		extraArgs = append(extraArgs, "-v", "--stats", "0")
+func getCommand(runMode tRunMode) string {
+	switch runMode {
+	case cRunModeSync:
+		return "sync"
+	default:
+		return "cryptcheck"
 	}
-	extraArgs = append(extraArgs, configParams...)
-	extraArgs = append(extraArgs, gExtraRcloneArgs...)
+}
+
+func getArgs(
+	sourceDir string,
+	cleanTargetDir string,
+	destination string,
+	backupDir string,
+	runMode tRunMode,
+	interactiveMode bool,
+	copyLinks bool,
+	argsFromConfig []string,
+	argsFromCommandLine []string) []string {
+	args := []string{sourceDir, destination, "--delete-excluded", "--exclude-from", "-"}
+	if interactiveMode {
+		args = append(args, "-P")
+	} else {
+		args = append(args, "-v", "--stats", "0")
+	}
+	args = append(args, argsFromConfig...)
+	args = append(args, argsFromCommandLine...)
 
 	// Handing of soft links
 	if copyLinks {
 		// Copy links as content rather than storing the links
-		extraArgs = append(extraArgs, "--copy-links")
+		args = append(args, "--copy-links")
 	} else {
 		// Store only the softlinks
-		extraArgs = append(extraArgs, "--links")
+		args = append(args, "--links")
 	}
 
-	rCloneCommand := "sync"
-
-	if gCheckSizes {
-		rCloneCommand = "cryptcheck"
-		protocolFilename := filepath.Join(config.GBackupDir, tools.SanitizeFilename(fmt.Sprintf("size-checks-%s.log", cleanTargetDir)))
-		extraArgs = append(extraArgs, "--size-only", "--combined", protocolFilename)
+	switch runMode {
+	case cRunModeCheckSizes:
+		protocolFilename := filepath.Join(backupDir, tools.SanitizeFilename(fmt.Sprintf("size-checks-%s.log", cleanTargetDir)))
+		args = append(args, "--size-only", "--combined", protocolFilename)
+	case cRunModeCheckSums:
+		protocolFilename := filepath.Join(backupDir, tools.SanitizeFilename(fmt.Sprintf("checksum-checks-%s.log", cleanTargetDir)))
+		args = append(args, "--combined", protocolFilename)
 	}
+	return args
+}
 
-	if gCheckSums {
-		rCloneCommand = "cryptcheck"
-		protocolFilename := filepath.Join(config.GBackupDir, tools.SanitizeFilename(fmt.Sprintf("checksum-checks-%s.log", cleanTargetDir)))
-		extraArgs = append(extraArgs, "--combined", protocolFilename)
-	}
-
-	return executor.ExecuteRclone(rCloneCommand, extraArgs, rclonePatterns)
+func makeRcloneExcludePatterns(globalExcludeDirs, globalExcludeFiles, dirExcludeDirs, dirExcludeFiles []string) []string {
+	excludeDirs := gotools.CopySlice(globalExcludeDirs)
+	excludeDirs = append(excludeDirs, dirExcludeDirs...)
+	patterns := gotools.CopySlice(globalExcludeFiles)
+	patterns = append(patterns, dirExcludeFiles...)
+	patterns = append(patterns, gotools.Map(excludeDirs, func(pattern string) string {
+		return filepath.Clean(pattern) + string(filepath.Separator)
+	})...)
+	return patterns
 }

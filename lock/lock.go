@@ -1,7 +1,6 @@
 package lock
 
 import (
-	"backupWithRclone/config"
 	"backupWithRclone/logger"
 	"errors"
 	"fmt"
@@ -17,8 +16,8 @@ type Lock struct {
 
 // AcquireInstanceLock returns an lock that shall remain set
 // for the entire protected operation.
-func AcquireLock() (Lock, bool) {
-	lockFileName := filepath.Join(config.GBackupDir, "lock")
+func AcquireLock(backupDir string) (Lock, bool) {
+	lockFileName := filepath.Join(backupDir, "lock")
 	lockFile, err := os.OpenFile(lockFileName, os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
 		logger.Printf("error opening lock file %s: %v\n", lockFileName, err)

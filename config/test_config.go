@@ -21,17 +21,11 @@ func findTestBackupDir() string {
 	panic("directory x not found in current or parent directory")
 }
 
-func InitTestConfig() {
-	if gInitCalled {
-		return
-	}
-	gInitCalled = true
-	GBackupDir = findTestBackupDir()
-	InitConfig()
-}
-
 // Init Test Config
 var _ = func() struct{} {
-	InitTestConfig()
+	if !gInitCalled {
+		gInitCalled = true
+		gBackupDir = findTestBackupDir()
+	}
 	return struct{}{}
 }()

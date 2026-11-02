@@ -1,7 +1,6 @@
 package logger
 
 import (
-	"backupWithRclone/config"
 	"fmt"
 	"log"
 	"os"
@@ -35,11 +34,11 @@ func (l *tFileLog) Printf(format string, v ...any) {
 var gLog TLog
 
 // InitLog initializes the logger
-func InitLog() TLog {
+func InitLog(backupDir string) TLog {
 	if gLog != nil {
 		return gLog
 	}
-	file, err := os.OpenFile(filepath.Join(config.GBackupDir, "exec.log"),
+	file, err := os.OpenFile(filepath.Join(backupDir, "exec.log"),
 		os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		panic(fmt.Errorf("Error accessing logger file: %v", err))
