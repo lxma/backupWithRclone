@@ -1,6 +1,7 @@
 package lock
 
 import (
+	"backupWithRclone/tools"
 	"sync"
 	"testing"
 )
@@ -18,7 +19,7 @@ func TestLocking(t *testing.T) {
 	go func() {
 		defer wg.Done()
 
-		lock, ok := AcquireLock(cTestBackupDir)
+		ok := AcquireLock()
 		acquired <- ok
 
 		if !ok {
@@ -27,7 +28,7 @@ func TestLocking(t *testing.T) {
 		}
 
 		<-attempted
-		lock.ReleaseLock()
+		tools.RunDeferredCalls(false)
 		close(released)
 	}()
 
@@ -39,19 +40,19 @@ func TestLocking(t *testing.T) {
 			return // Initial acquisition failed; cannot test contention.
 		}
 
-		_, ok := AcquireLock(cTestBackupDir)
+		ok := AcquireLock()
 		if ok {
 			t.Error("second goroutine: acquired lock while already held")
 		}
 		close(attempted)
 
 		<-released
-		lock, ok := AcquireLock(cTestBackupDir)
+		ok = AcquireLock()
 		if !ok {
 			t.Error("second goroutine: acquisition failed after release")
 			return
 		}
-		defer lock.ReleaseLock()
+		tools.RunDeferredCalls(false)
 	}()
 
 	wg.Wait()

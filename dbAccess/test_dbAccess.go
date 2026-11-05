@@ -3,29 +3,24 @@
 package dbAccess
 
 import (
+	"backupWithRclone/tools"
 	"database/sql"
 )
 
 const cMemoryDb = ":memory:"
 
-var gInitCalled = false
-
 func InitTestDB() {
-	if gInitCalled {
-		return
-	}
-	gInitCalled = true
-
 	var err error
 	gDB, err = sql.Open("sqlite", cMemoryDb)
 	if err != nil {
 		panic(err)
 	}
-	setupInitialDbStructure(gDB)
+	setupInitialDbStructure()
 }
 
 // Init Test DB
 var _ = func() struct{} {
 	InitTestDB()
+	tools.AddTestSetupFunc(InitTestDB)
 	return struct{}{}
 }()

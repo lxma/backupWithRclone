@@ -9,23 +9,28 @@ import (
 )
 
 type TMemLog struct {
-	active  bool
-	entries []string
+	Active    bool
+	Entries   []string
+	IsVerbose bool
+}
+
+func (m TMemLog) Verbose() bool {
+	return m.IsVerbose
 }
 
 var GTestLog *TMemLog
 
 func (m TMemLog) Printf(format string, v ...any) {
-	gotools.Assert(m.active)
-	m.entries = append(m.entries, fmt.Sprintf(format, v...))
+	gotools.Assert(m.Active)
+	m.Entries = append(m.Entries, fmt.Sprintf(format, v...))
 }
 
 func (m TMemLog) Close() {
-	m.active = false
+	m.Active = false
 }
 
 var _ = func() struct{} {
-	GTestLog = &TMemLog{active: true, entries: make([]string, 0)}
-	gLog = GTestLog
+	GTestLog = &TMemLog{Active: true, Entries: make([]string, 0)}
+	gLoggerSingleton = GTestLog
 	return struct{}{}
 }()

@@ -19,9 +19,19 @@ func TestExpandHome(t *testing.T) {
 }
 
 func TestSanitizeFilename(t *testing.T) {
-	assert.Equal(t, SanitizeFilename("a"), "a")
-	assert.Equal(t, SanitizeFilename(""), "_")
-	assert.Equal(t, SanitizeFilename("."), "_")
-	assert.Equal(t, SanitizeFilename(".."), "_")
-	assert.Equal(t, SanitizeFilename("abc/def:ghi/"), "abc_def_ghi_")
+	assert.Equal(t, EscapeFilenamePart("a"), "a")
+	assert.Equal(t, EscapeFilenamePart(""), "_")
+	assert.Equal(t, EscapeFilenamePart("."), "_")
+	assert.Equal(t, EscapeFilenamePart(".."), "_")
+	assert.Equal(t, EscapeFilenamePart("abc/def:ghi/"), "abc_def_ghi_")
+}
+
+func TestDeferredCalls(t *testing.T) {
+	x := 1
+	AddDeferredCall("test", func() {
+		x = 2
+	})
+	RunDeferredCalls(false)
+	assert.Equal(t, 2, x)
+	assert.Zero(t, gDeferredCalls.Len(), "Deferred calls are only called once")
 }

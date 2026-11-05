@@ -1,6 +1,8 @@
 package logger
 
 import (
+	"backupWithRclone/config"
+	"backupWithRclone/tools"
 	"fmt"
 	"log"
 	"os"
@@ -8,19 +10,18 @@ import (
 	"strings"
 )
 
-type TLog interface {
+type tLogger interface {
+	Verbose() bool
 	Printf(format string, v ...any)
 	Close()
 }
 
 type tFileLog struct {
-	logFile *os.File
+	verbose bool
 	logger  *log.Logger
 }
 
 func (l *tFileLog) Close() {
-	// CloseLog closes the logfile
-	l.logFile.Close()
 }
 
 func (l *tFileLog) Printf(format string, v ...any) {
@@ -31,27 +32,37 @@ func (l *tFileLog) Printf(format string, v ...any) {
 	fmt.Printf(format, v...)
 }
 
-var gLog TLog
+func (l *tFileLog) Verbose() bool {
+	return l.verbose
+}
 
-// InitLog initializes the logger
-func InitLog(backupDir string) TLog {
-	if gLog != nil {
-		return gLog
+var gLoggerSingleton tLogger
+
+func Verbose() bool {
+	return gLoggerSingleton.Verbose()
+}
+
+// GetLog initializes the logger
+func InitLog(verbose bool) {
+	if gLoggerSingleton != nil {
+		return
 	}
-	file, err := os.OpenFile(filepath.Join(backupDir, "exec.log"),
+	file, err := os.OpenFile(filepath.Join(config.GBackupDir, "exec.log"),
 		os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		panic(fmt.Errorf("Error accessing logger file: %v", err))
 	}
+	tools.AddDeferredCall("Close log file", func() {
+		file.Close()
+	})
 	logger := log.New(file, "", log.LstdFlags)
 	fileLog := &tFileLog{
-		logFile: file,
+		verbose: verbose,
 		logger:  logger,
 	}
-	gLog = fileLog
-	return fileLog
+	gLoggerSingleton = fileLog
 }
 
 func Printf(format string, v ...any) {
-	gLog.Printf(format, v...)
+	gLoggerSingleton.Printf(format, v...)
 }

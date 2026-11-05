@@ -16,8 +16,8 @@ func TestArePathsRelated(t *testing.T) {
 	assert.False(t, arePathsRelated("a", "b/a"))
 }
 
-func TestGetTargetDir(t *testing.T) {
-	assert.Equal(t, "B", getTargetDir(TDirConfig{CleanSourceDir: "A", TargetDir: "B"}))
-	assert.Equal(t, "A", getTargetDir(TDirConfig{CleanSourceDir: "A", TargetDir: ""}))
-	assert.Equal(t, "A", getTargetDir(TDirConfig{CleanSourceDir: "A"}))
+func TestGetCleanTargetDir(t *testing.T) {
+	assert.Equal(t, "B", getCleanTargetDir(TDirConfig{CleanSourceDir: "A", TargetDir: "B"}))
+	assert.Equal(t, "A", getCleanTargetDir(TDirConfig{CleanSourceDir: "A", TargetDir: ""}))
+	assert.Equal(t, "A", getCleanTargetDir(TDirConfig{CleanSourceDir: "A"}))
 }

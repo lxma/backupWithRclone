@@ -12,4 +12,7 @@ dirs:
   - source_dir: ./testdirs/changed_path_indirect
   - source_dir: ./testdirs/changed_subpaths
     target_dir: output
-
+  - source_dir: ./testdirs/copy_links
+    copy_links: true
+  - source_dir: ./testdirs/extra_args
+    rclone_params: [--help]

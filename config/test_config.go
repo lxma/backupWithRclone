@@ -3,6 +3,7 @@
 package config
 
 import (
+	"backupWithRclone/tools"
 	"os"
 	"path/filepath"
 )
@@ -25,7 +26,11 @@ func findTestBackupDir() string {
 var _ = func() struct{} {
 	if !gInitCalled {
 		gInitCalled = true
-		gBackupDir = findTestBackupDir()
+		GBackupDir = findTestBackupDir()
+		InitConfig()
+		tools.AddTestSetupFunc(func() {
+			InitConfig()
+		})
 	}
 	return struct{}{}
 }()

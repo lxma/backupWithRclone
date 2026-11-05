@@ -27,17 +27,17 @@ func TestDBFlowWorks(t *testing.T) {
 	const cSubDir2 = "subdir2"
 
 	// ensure the DB flow works and the cutoff timestamp is recorded appropriately
-	StoreMainDirectoryStates(gDB, []string{cTestDir})
-	MarkUpdateDirStarted(gDB, cTestDir, time.Now())
-	MarkSubDirStarted(gDB, cSubDir1)
-	MarkSubDirCompleted(gDB, cSubDir1)
-	MarkSubDirStarted(gDB, cSubDir2)
-	MarkSubDirCompleted(gDB, cSubDir2)
+	StoreMainDirectoryStates([]string{cTestDir})
+	MarkUpdateDirStarted(cTestDir, time.Now())
+	MarkSubDirStarted(cSubDir1)
+	MarkSubDirCompleted(cSubDir1)
+	MarkSubDirStarted(cSubDir2)
+	MarkSubDirCompleted(cSubDir2)
 	cutoffTimestamp := time.Now()
 	wrongCutoffTimestamp := time.Now().Add(-time.Hour)
-	MarkUpdateDirCompleted(gDB, cTestDir, cutoffTimestamp)
-	cutoffTimestamps := ReadCutoffTimestamps(gDB)
+	MarkUpdateDirCompleted(cTestDir, cutoffTimestamp)
+	cutoffTimestamps := ReadCutoffTimestamps()
 	assert.True(t, gotools.MapHasKey(cutoffTimestamps, cTestDir))
-	assert.Equal(t, DateToDbDate(cutoffTimestamp), DateToDbDate(cutoffTimestamps[cTestDir]))
-	assert.NotEqual(t, DateToDbDate(wrongCutoffTimestamp), DateToDbDate(cutoffTimestamps[cTestDir]))
+	assert.Equal(t, dateToDbDate(cutoffTimestamp), dateToDbDate(cutoffTimestamps[cTestDir]))
+	assert.NotEqual(t, dateToDbDate(wrongCutoffTimestamp), dateToDbDate(cutoffTimestamps[cTestDir]))
 }
