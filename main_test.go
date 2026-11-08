@@ -24,7 +24,7 @@ func TestMainStraight(t *testing.T) {
 
 // The configuration entries are taken from testBackupDir/config.yaml
 func TestMakeRcloneExcludePatterns(t *testing.T) {
-	excl := makeRcloneExcludePatterns("./testdirs/exclude")
+	excl := getRcloneExcludePatterns("./testdirs/exclude")
 	slices.Sort(excl)
 	assert.Equal(t, []string{
 		"ex*dir1/",
@@ -37,26 +37,26 @@ func TestMakeRcloneExcludePatterns(t *testing.T) {
 }
 
 func TestArgsCopyLinks(t *testing.T) {
-	assert.Contains(t, getArgs("./testdirs/changed_subpaths"), "--links")
-	assert.Contains(t, getArgs("./testdirs/copy_links"), "--copy-links")
+	assert.Contains(t, getRcloneArgs("./testdirs/changed_subpaths"), "--links")
+	assert.Contains(t, getRcloneArgs("./testdirs/copy_links"), "--copy-links")
 }
 
 func TestArgsExtraArgs(t *testing.T) {
 	const cCommandLineArg = "Command Line Arg"
 	const cDirConfigArg = "--help" // set in config.yaml for dir: ./testdirs/extra_args
 	gExtraRcloneArgs = []string{cCommandLineArg}
-	args := getArgs("./testdirs/extra_args")
+	args := getRcloneArgs("./testdirs/extra_args")
 	assert.Contains(t, args, cCommandLineArg)
 	assert.Contains(t, args, cDirConfigArg)
 }
 
 func TestArgsRunMode(t *testing.T) {
 	gRunMode = cRunModeSync
-	assert.NotContains(t, getArgs(cStandardDir), "--combined")
+	assert.NotContains(t, getRcloneArgs(cStandardDir), "--combined")
 	gRunMode = cRunModeCheckSums
-	assert.Contains(t, getArgs(cStandardDir), "--combined")
-	assert.NotContains(t, getArgs(cStandardDir), "--size-only")
+	assert.Contains(t, getRcloneArgs(cStandardDir), "--combined")
+	assert.NotContains(t, getRcloneArgs(cStandardDir), "--size-only")
 	gRunMode = cRunModeCheckSizes
-	assert.Contains(t, getArgs(cStandardDir), "--combined")
-	assert.Contains(t, getArgs(cStandardDir), "--size-only")
+	assert.Contains(t, getRcloneArgs(cStandardDir), "--combined")
+	assert.Contains(t, getRcloneArgs(cStandardDir), "--size-only")
 }

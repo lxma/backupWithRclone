@@ -83,7 +83,7 @@ rm "$BACKUP_WITH_RCLONE_DIR/checksum-check"*
 ./backupWithRclone -cs
 file_contains_line "$BACKUP_WITH_RCLONE_DIR/size-checks-standard.log" '- dir1/file_b.txt' \
   || error "should report about the missing dir1/file_b.txt"
-! file_contains_line "$BACKUP_WITH_RCLONE_DIR/checksum-checks-standard.log" '* dir1/file_b.txt' \
+! file_contains_line "$BACKUP_WITH_RCLONE_DIR/size-checks-standard.log" '* dir1/file_b.txt' \
   || error "size check should NOT report about the changed dir1/file_a.txt"
 
 ./backupWithRclone -cc

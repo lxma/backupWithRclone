@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -23,11 +24,20 @@ type tDirAndCutoff struct {
 
 type tRunMode string
 
+type tChanges struct {
+	dir         string
+	changeLines []string
+	errorText   string
+}
+
 const (
 	cRunModeSync       tRunMode = "SYNC"
 	cRunModeCheckSums  tRunMode = "CHECK_SUMS"
 	cRunModeCheckSizes tRunMode = "CHECK_SIZES"
 )
+
+// Regular expressions
+var rProtocolLineIsChange = regexp.MustCompile("^[*+-]")
 
 // flags
 var gExtraRcloneArgs []string
@@ -90,29 +100,68 @@ func run() {
 	}
 	dbAccess.StoreMainDirectoryStates(sourceDirs)
 
+	var allChanges []tChanges
 	for _, dirAndCutoff := range dirsAndCutoffs {
-		updateDir(dirAndCutoff.dir)
+		changes := updateDir(dirAndCutoff.dir)
+		if changes != nil && (changes.errorText != "" || len(changes.changeLines) > 0) {
+			allChanges = append(allChanges, *changes)
+		}
+	}
+	if allChanges != nil {
+		logger.Printf("###############################################################################")
+		logger.Printf("## All changes:")
+		for _, changes := range allChanges {
+			logger.Printf("## Dir %s", changes.dir)
+			if changes.errorText != "" {
+				logger.Printf("## ERROR: %s", changes.errorText)
+			}
+			for _, changeLine := range changes.changeLines {
+				logger.Printf("##    %s", changeLine)
+			}
+		}
 	}
 }
 
-func updateDir(dir string) {
-	logger.Printf("##############################################################\n")
-	logger.Printf("## Updating directory %s\n", dir)
+func updateDir(dir string) *tChanges {
+	logger.Printf("##############################################################")
+	logger.Printf("## Updating directory %s", dir)
 
 	newCutoff := time.Now().Add(-time.Second)
 	if gRunMode == cRunModeSync {
 		dbAccess.MarkUpdateDirStarted(dir, newCutoff)
 	}
 
-	excludePatterns := makeRcloneExcludePatterns(dir)
-	ok := executor.ExecuteRclone(getCommand(gRunMode), getArgs(dir), excludePatterns)
+	excludePatterns := getRcloneExcludePatterns(dir)
+	ok := executor.ExecuteRclone(getRcloneCommand(gRunMode), getRcloneArgs(dir), excludePatterns)
 	if ok {
-		logger.Printf("## Completed updating %s\n", dir)
+		logger.Printf("## Completed updating %s", dir)
 		if gRunMode == cRunModeSync {
 			dbAccess.MarkUpdateDirCompleted(dir, newCutoff)
 		}
 	} else {
-		logger.Printf("## Failed updating %s\n", dir)
+		logger.Printf("## Failed updating %s", dir)
+	}
+	if gRunMode == cRunModeCheckSizes || gRunMode == cRunModeCheckSums {
+		return getChanges(dir)
+	}
+	return nil
+}
+
+// getChanges collects differences from the protocol file of the given directory
+func getChanges(dir string) *tChanges {
+	protocolFile := getProtocolFilename(dir)
+	lines, err := gotools.ReadLines(protocolFile)
+	if err != nil {
+		return &tChanges{
+			dir:       dir,
+			errorText: fmt.Sprintf("Error reading protocol file %s: %v\n", protocolFile, err),
+		}
+	}
+	return &tChanges{
+		dir: dir,
+		changeLines: gotools.Filter(lines, func(line string) bool {
+			return rProtocolLineIsChange.MatchString(line)
+		}),
 	}
 }
 
@@ -126,7 +175,7 @@ func getDestination(dir string) string {
 	return filepath.Join(destinationPrefix, dirConfig.CleanTargetDir)
 }
 
-func getCommand(runMode tRunMode) string {
+func getRcloneCommand(runMode tRunMode) string {
 	switch runMode {
 	case cRunModeSync:
 		return "sync"
@@ -135,7 +184,7 @@ func getCommand(runMode tRunMode) string {
 	}
 }
 
-func getArgs(dir string) []string {
+func getRcloneArgs(dir string) []string {
 	dirConfig := config.GConfig.Dirs[dir]
 	destination := getDestination(dir)
 	args := []string{tools.ExpandHome(dirConfig.CleanSourceDir), destination, "--delete-excluded", "--exclude-from", "-"}
@@ -158,16 +207,14 @@ func getArgs(dir string) []string {
 
 	switch gRunMode {
 	case cRunModeCheckSizes:
-		protocolFilename := filepath.Join(config.GBackupDir, tools.EscapeFilenamePart(fmt.Sprintf("size-checks-%s.log", dirConfig.CleanTargetDir)))
-		args = append(args, "--size-only", "--combined", protocolFilename)
+		args = append(args, "--size-only", "--combined", getProtocolFilename(dir))
 	case cRunModeCheckSums:
-		protocolFilename := filepath.Join(config.GBackupDir, tools.EscapeFilenamePart(fmt.Sprintf("checksum-checks-%s.log", dirConfig.CleanTargetDir)))
-		args = append(args, "--combined", protocolFilename)
+		args = append(args, "--combined", getProtocolFilename(dir))
 	}
 	return args
 }
 
-func makeRcloneExcludePatterns(dir string) []string {
+func getRcloneExcludePatterns(dir string) []string {
 	dirConfig := config.GConfig.Dirs[dir]
 	excludeDirs := gotools.CopySlice(config.GConfig.ExcludeDirs)
 	excludeDirs = append(excludeDirs, dirConfig.ExcludeDirs...)
@@ -177,4 +224,18 @@ func makeRcloneExcludePatterns(dir string) []string {
 		return filepath.Clean(pattern) + string(filepath.Separator)
 	})...)
 	return patterns
+}
+
+func getProtocolFilename(dir string) string {
+	dirConfig := config.GConfig.Dirs[dir]
+	var filePrefix string
+	switch gRunMode {
+	case cRunModeCheckSizes:
+		filePrefix = "size-checks"
+	case cRunModeCheckSums:
+		filePrefix = "checksum-checks"
+	default:
+		tools.StopWithErrorMessage("should not call \"getProtocolFilename\" when runmode is %d", gRunMode)
+	}
+	return filepath.Join(config.GBackupDir, tools.EscapeFilenamePart(fmt.Sprintf("%s-%s.log", filePrefix, dirConfig.CleanTargetDir)))
 }
