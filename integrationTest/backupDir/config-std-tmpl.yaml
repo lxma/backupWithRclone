@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/lxma/backupWithRclone/refs/heads/main/config-schema-v1.json
+rclone_destination_prefix: "${INTEGRATION_TEST_DEST_PREFIX}/integration-test"
+exclude_files: [ex*file1.txt, ex*file2.txt]
+exclude_dirs: [ex*dir1, ex*dir2]
+dirs:
+  - source_dir: ./integrationTest/testdirs/standard
+  - source_dir: ./integrationTest/testdirs/check_exclude
+    exclude_dirs: [excludesubdir]
+    exclude_files: [excludesubfile]
+  - source_dir: ./integrationTest/testdirs/check_target_dir
+    target_dir: targetdir
+  - source_dir: ./integrationTest/testdirs/check_copy_links
+    copy_links: true

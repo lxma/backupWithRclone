@@ -42,11 +42,11 @@ func main() {
 		gExtraRcloneArgs = append(gExtraRcloneArgs, arg)
 		return nil
 	})
-	flag.Func("cc", "Perform a check using true checksums", func(arg string) error {
+	flag.BoolFunc("cc", "Perform a check using true checksums", func(arg string) error {
 		gRunMode = cRunModeCheckSums
 		return nil
 	})
-	flag.Func("cs", "Perform a check using just file sizes", func(arg string) error {
+	flag.BoolFunc("cs", "Perform a check using just file sizes", func(arg string) error {
 		gRunMode = cRunModeCheckSizes
 		return nil
 	})
@@ -107,12 +107,12 @@ func updateDir(dir string) {
 	excludePatterns := makeRcloneExcludePatterns(dir)
 	ok := executor.ExecuteRclone(getCommand(gRunMode), getArgs(dir), excludePatterns)
 	if ok {
-		logger.Printf("Completed updating %s\n", dir)
+		logger.Printf("## Completed updating %s\n", dir)
 		if gRunMode == cRunModeSync {
 			dbAccess.MarkUpdateDirCompleted(dir, newCutoff)
 		}
 	} else {
-		logger.Printf("Failed updating %s\n", dir)
+		logger.Printf("## Failed updating %s\n", dir)
 	}
 }
 
