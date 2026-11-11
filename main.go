@@ -102,7 +102,7 @@ func run() {
 
 	var allChanges []tChanges
 	for _, dirAndCutoff := range dirsAndCutoffs {
-		changes := updateDir(dirAndCutoff.dir)
+		changes := handleDir(dirAndCutoff.dir)
 		if changes != nil && (changes.errorText != "" || len(changes.changeLines) > 0) {
 			allChanges = append(allChanges, *changes)
 		}
@@ -122,9 +122,9 @@ func run() {
 	}
 }
 
-func updateDir(dir string) *tChanges {
+func handleDir(dir string) *tChanges {
 	logger.Printf("##############################################################")
-	logger.Printf("## Updating directory %s", dir)
+	logger.Printf("## Handling directory %s", dir)
 
 	newCutoff := time.Now().Add(-time.Second)
 	if gRunMode == cRunModeSync {
@@ -134,12 +134,12 @@ func updateDir(dir string) *tChanges {
 	excludePatterns := getRcloneExcludePatterns(dir)
 	ok := executor.ExecuteRclone(getRcloneCommand(gRunMode), getRcloneArgs(dir), excludePatterns)
 	if ok {
-		logger.Printf("## Completed updating %s", dir)
+		logger.Printf("## Completed %s", dir)
 		if gRunMode == cRunModeSync {
 			dbAccess.MarkUpdateDirCompleted(dir, newCutoff)
 		}
 	} else {
-		logger.Printf("## Failed updating %s", dir)
+		logger.Printf("## Failed %s", dir)
 	}
 	if gRunMode == cRunModeCheckSizes || gRunMode == cRunModeCheckSums {
 		return getChanges(dir)
