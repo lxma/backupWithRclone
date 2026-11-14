@@ -77,6 +77,7 @@ func main() {
 	dbAccess.InitDB()
 
 	run()
+	logger.Printf("## Finished backing up")
 }
 
 func run() {
